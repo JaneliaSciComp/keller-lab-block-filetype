@@ -35,13 +35,10 @@
 
 #include "bzlib.h"
 
-std::mutex              g_lockqueue;//this is the queue containing the id of the blocks that can be written
-std::mutex				g_lockblockId;
-std::condition_variable g_queuecheck;//to notify writer that blocks are ready
-std::vector<int>         g_blockSize;//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
-
-
 //#define DEBUG_PRINT_THREADS
+
+std::mutex				g_lockblockId;//so each worker reads a unique blockId
+std::condition_variable g_queuecheck;//to notify writer that blocks are ready
 
 //global variables for the blocks
 const int blockSizeBytes = 2048 * 1024;//set it around 2MB
@@ -49,7 +46,7 @@ std::int64_t blockId = 0;//keeps track of which block to read
 
 
 //======================================================
-void workerfunc(char* buffer, std::int64_t fLength)
+void workerfunc(char* buffer, std::int64_t fLength, int* g_blockSize)
 {
 	const int BWTblockSize = 9;//maximum compression
 	std::int64_t blockId_t;
@@ -86,11 +83,11 @@ void workerfunc(char* buffer, std::int64_t fLength)
 		if (ret != BZ_OK)
 		{
 			std::cout << "ERROR: workerfunc: compressing data at block"<<blockId_t << std::endl;
-			break;
+			sizeCompressed = 0;
 		}
 
 		/*
-		//for uncompressed copy
+		//for uncompressed copy (for debugging purposes)
 		//sizeCompressed = gcount;
 		//memcpy(&(buffer[blockId_t * blockSizeBytes]), bufferIn, sizeCompressed);//fid.gcount():Returns the number of characters extracted by the last unformatted input operation performed on the object
 		*/
@@ -109,7 +106,7 @@ void workerfunc(char* buffer, std::int64_t fLength)
 
 //=========================================================================
 //writes compressed blocks sequentially as they become available (in order) from the workers
-void blockWriter(char* buffer, std::string filenameOut)
+void blockWriter(char* buffer, std::string filenameOut, int* g_blockSize, std::int64_t numBlocks)
 {
 	std::int64_t nextBlockId = 0, offset = 0;
 
@@ -118,13 +115,14 @@ void blockWriter(char* buffer, std::string filenameOut)
 	if (fout.is_open() == false)
 	{
 		std::cout << "ERROR: file " << filenameOut << " could not be opened" << std::endl;
-		nextBlockId = g_blockSize.size();
+		nextBlockId = numBlocks;
 	}
 
 
 	// loop until end is signaled	
+	std::mutex              g_lockqueue;//mutex for the condition variable (dummy one)
 	std::unique_lock<std::mutex> locker(g_lockqueue);//acquires the lock but this is the only thread using it. We cannot have condition_variables without a mutex
-	while ( nextBlockId < g_blockSize.size() )
+	while ( nextBlockId < numBlocks )
 	{
 				
 		g_queuecheck.wait(locker, [&](){return (g_blockSize[nextBlockId] >= 0); });//releases the lock until notify. If condition is not satisfied, it waits again
@@ -185,17 +183,20 @@ int main(int argc, const char** argv)
 	auto t1 = Clock::now();
 
 	//initialization of global communication variables
-	blockId = 0;
-	g_blockSize.resize( ceil((float)fLength / (float)blockSizeBytes),-1 );
+	blockId = 0;	
+	std::int64_t numBlocks = ceil((float)fLength / (float)blockSizeBytes);
+	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
+	for (std::int64_t ii = 0; ii < numBlocks; ii++)
+		g_blockSize[ii] = -1;
 
 	// start the thread to write
-	std::thread writerthread(blockWriter, buffer, filenameOut);
+	std::thread writerthread(blockWriter, buffer, filenameOut, g_blockSize, numBlocks);
 
 	// start the working threads
 	std::vector<std::thread> threads;
 	for (int i = 0; i < numThreads; ++i)
 	{
-		threads.push_back(std::thread(workerfunc, std::ref(buffer), fLength));
+		threads.push_back(std::thread(workerfunc, buffer, fLength, g_blockSize ));
 	}
 
 	//wait for the workers to finish
@@ -209,6 +210,9 @@ int main(int argc, const char** argv)
 
 	std::cout << "Read file = " << std::chrono::duration_cast<std::chrono::milliseconds>(t1 - t0).count() << "ms; compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms; Total time = " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t0).count() << " ms" << std::endl;
 	
+	//release memory
+	delete[] g_blockSize;
+	delete[] buffer;
 
 	return 0;
 }
