@@ -38,11 +38,8 @@
 std::mutex              g_lockqueue;//this is the queue containing the id of the blocks that can be written
 std::mutex				g_lockblockId;
 std::condition_variable g_queuecheck;//to notify writer that blocks are ready
-std::list<std::int64_t>         g_blockId;//contains the block id that can be writen
-std::list<int>         g_blockSize;//number of bytes (after compression) to be written
+std::vector<int>         g_blockSize;//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
 
-bool                    g_done;
-bool                    g_notified;
 
 //#define DEBUG_PRINT_THREADS
 
@@ -99,9 +96,8 @@ void workerfunc(char* buffer, std::int64_t fLength)
 		*/
 
 		//signal blockWriter that this block can be writen
-		std::unique_lock<std::mutex> locker(g_lockqueue);
-		g_blockId.push_back(blockId_t);
-		g_blockSize.push_back(sizeCompressed);
+		//std::unique_lock<std::mutex> locker(g_lockqueue);//adquires the lock
+		g_blockSize[blockId_t] = sizeCompressed;//I don't really need the lock to modify this. I only need to singal the condition variable
 		g_queuecheck.notify_one();
 	}
 
@@ -115,50 +111,34 @@ void workerfunc(char* buffer, std::int64_t fLength)
 //writes compressed blocks sequentially as they become available (in order) from the workers
 void blockWriter(char* buffer, std::string filenameOut)
 {
+	std::int64_t nextBlockId = 0, offset = 0;
+
 	//open output file
 	std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);
 	if (fout.is_open() == false)
 	{
 		std::cout << "ERROR: file " << filenameOut << " could not be opened" << std::endl;
-		g_done = true;
+		nextBlockId = g_blockSize.size();
 	}
 
 
-	// loop until end is signaled
-	std::int64_t nextBlockId = 0, offset = 0;
-	while (!g_done)
+	// loop until end is signaled	
+	std::unique_lock<std::mutex> locker(g_lockqueue);//acquires the lock but this is the only thread using it. We cannot have condition_variables without a mutex
+	while ( nextBlockId < g_blockSize.size() )
 	{
-		std::unique_lock<std::mutex> locker(g_lockqueue);
+				
+		g_queuecheck.wait(locker, [&](){return (g_blockSize[nextBlockId] >= 0); });//releases the lock until notify. If condition is not satisfied, it waits again
 
-		g_queuecheck.wait(locker, [&](){return !g_blockId.empty(); });
-
-		//check if there next expected block is ready in the list
-		bool processedBlock = true;
-		while (processedBlock)
-		{			
-			processedBlock = false;
-			std::list<int>::iterator iterS = g_blockSize.begin();
-			for (std::list<std::int64_t>::iterator iter = g_blockId.begin(); iter != g_blockId.end(); ++iter, ++iterS)
-			{
-				if (*iter == nextBlockId)
-				{
 #ifdef DEBUG_PRINT_THREADS
-					printf("Writer appending block %d with %d bytes\n", (int)nextBlockId, *iterS);
+		printf("Writer appending block %d with %d bytes\n", (int)nextBlockId, g_blockSize[nextBlockId]);
 #endif
-					//write block
-					fout.write(&(buffer[offset]), (*iterS));
-					offset += (std::int64_t)(*iterS);
 
-					//update variables
-					processedBlock = true;
-					nextBlockId++;
-					g_blockId.erase(iter);
-					g_blockSize.erase(iterS);
+		//write block
+		fout.write(&(buffer[offset]), g_blockSize[nextBlockId]);
+		offset += (std::int64_t)(g_blockSize[nextBlockId]);
 
-					break;//otherwise for loop crashes trying to perform ++iter
-				}
-			}
-		}
+		//update variables
+		nextBlockId++;
 	}
 
 	//close file
@@ -170,12 +150,13 @@ void blockWriter(char* buffer, std::string filenameOut)
 int main(int argc, const char** argv)
 {
 	const int numThreads = 12;//number of threads to process parallel blocks (we use one extra one to write the data into disk)
-	std::string filename("E:/compressionFormatData/DrosophilaTM300.raw");
-	std::string filenameOut("E:/compressionFormatData/DrosophilaTM300.klb");
+	
+	//std::string filename("E:/compressionFormatData/DrosophilaTM300.raw");
+	//std::string filenameOut("E:/compressionFormatData/DrosophilaTM300.klb");
 
-
-	//initialization
-	blockId = 0;
+	std::string filename("E:/compressionFormatData/ZebrafishTM200.raw");
+	std::string filenameOut("E:/compressionFormatData/ZebrafishTM200.klb");
+	
 
 	//open input file
 	std::ifstream fid(filename.c_str(), std::ios::binary | std::ios::in);
@@ -203,6 +184,10 @@ int main(int argc, const char** argv)
 
 	auto t1 = Clock::now();
 
+	//initialization of global communication variables
+	blockId = 0;
+	g_blockSize.resize( ceil((float)fLength / (float)blockSizeBytes),-1 );
+
 	// start the thread to write
 	std::thread writerthread(blockWriter, buffer, filenameOut);
 
@@ -217,8 +202,7 @@ int main(int argc, const char** argv)
 	for (auto& t : threads)
 		t.join();
 
-	// notify the logger to finish and wait for it
-	g_done = true;
+	//wait for the writer
 	writerthread.join();
 
 	auto t2 = Clock::now();
