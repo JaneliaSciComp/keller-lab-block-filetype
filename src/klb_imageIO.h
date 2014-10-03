@@ -48,7 +48,7 @@ public:
 	\brief	Main function to save an image. We assume the correct header has been set prior to calling this function. 
 			img is modified inside the function to do the compression in place
 	*/
-	int writeImage(char* img, int numThreads);//
+	int writeImage(char* img, int numThreads);
 
 protected:
 
@@ -59,7 +59,7 @@ private:
 
 	//functions to call for each thread
 	void blockWriter(char* buffer, std::string filenameOut, int* g_blockSize, const std::uint64_t numBlocks);	
-	void blockCompressor(char* buffer, const std::uint32_t* xyzct, int* g_blockSize, const std::uint32_t* blockSize, const size_t bytesPerPixel, uint64_t *blockId);
+	void blockCompressor(char* buffer, int* g_blockSize, uint64_t *blockId);
 };
 
 

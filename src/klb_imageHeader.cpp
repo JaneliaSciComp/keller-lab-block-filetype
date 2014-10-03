@@ -121,12 +121,17 @@ uint32_t klb_image_header::getBlockSizeBytes()
 
 //======================================================
 uint64_t klb_image_header::getImageSizeBytes()
+{	
+	return getImageSizePixels() * getBytesPerPixel();
+}
+//========================================
+uint64_t klb_image_header::getImageSizePixels()
 {
 	uint64_t imgSize = 1;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		imgSize *= xyzct[ii];
 
-	return imgSize * getBytesPerPixel();
+	return imgSize;
 }
 //==============================================================
 void klb_image_header::writeHeader(std::ostream &fid)

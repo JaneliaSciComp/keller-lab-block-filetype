@@ -35,13 +35,14 @@ std::condition_variable	klb_imageIO::g_queuecheck;//to notify writer that blocks
 
 //========================================================
 //======================================================
-void klb_imageIO::blockCompressor(char* buffer, const std::uint32_t* xyzct, int* g_blockSize, const std::uint32_t* blockSize, const size_t bytesPerPixel, uint64_t *blockId)
+void klb_imageIO::blockCompressor(char* buffer, int* g_blockSize, uint64_t *blockId)
 {
 	const int BWTblockSize = 9;//maximum compression
 	std::uint64_t blockId_t;
 	int gcount;//read bytes
 	unsigned int sizeCompressed;//size of block in bytes after compression
 
+	size_t bytesPerPixel = header.getBytesPerPixel();
 	uint32_t blockSizeBytes = bytesPerPixel;
 	uint64_t fLength = bytesPerPixel;
 	uint64_t dimsBlock[KLB_DATA_DIMS];//number of blocks on each dimension
@@ -53,11 +54,11 @@ void klb_imageIO::blockCompressor(char* buffer, const std::uint32_t* xyzct, int*
 	xyzctCum[0] = 1;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
-		blockSizeBytes *= blockSize[ii];
-		fLength *= xyzct[ii];
-		dimsBlock[ii] = ceil((float)(xyzct[ii]) / (float)(blockSize[ii]));
+		blockSizeBytes *= header.blockSize[ii];
+		fLength *= header.xyzct[ii];
+		dimsBlock[ii] = ceil((float)(header.xyzct[ii]) / (float)(header.blockSize[ii]));
 		if (ii > 0)
-			xyzctCum[ii] = xyzctCum[ii - 1] * xyzct[ii - 1];
+			xyzctCum[ii] = xyzctCum[ii - 1] * header.xyzct[ii - 1];
 	}
 	char* bufferIn = new char[blockSizeBytes];
 
@@ -91,13 +92,13 @@ void klb_imageIO::blockCompressor(char* buffer, const std::uint32_t* xyzct, int*
 			coordBlock[ii] = blockIdx_aux % dimsBlock[ii];
 			blockIdx_aux -= coordBlock[ii];
 			blockIdx_aux /= dimsBlock[ii];
-			coordBlock[ii] *= blockSize[ii];//parsing coordinates to image space (not block anymore)
+			coordBlock[ii] *= header.blockSize[ii];//parsing coordinates to image space (not block anymore)
 		}
 
 		//make sure it is not a border block
 		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		{
-			blockSizeAux[ii] = std::min(blockSize[ii], (uint32_t)(xyzct[ii] - coordBlock[ii]));
+			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
 		}
 
 		//calculate starting offset in the buffer
@@ -187,6 +188,8 @@ void klb_imageIO::blockWriter(char* buffer, std::string filenameOut, int* g_bloc
 		nextBlockId = numBlocks;
 	}
 
+	//write header
+	header.writeHeader(fout);
 
 	// loop until end is signaled	
 	std::mutex              g_lockqueue;//mutex for the condition variable (dummy one)
@@ -200,6 +203,8 @@ void klb_imageIO::blockWriter(char* buffer, std::string filenameOut, int* g_bloc
 		printf("Writer appending block %d with %d bytes\n", (int)nextBlockId, g_blockSize[nextBlockId]);
 #endif
 
+		//update header blockOffset
+		header.blockOffset[nextBlockId] = offset;
 		//write block
 		fout.write(&(buffer[offset]), g_blockSize[nextBlockId]);
 		offset += (std::int64_t)(g_blockSize[nextBlockId]);
@@ -207,6 +212,11 @@ void klb_imageIO::blockWriter(char* buffer, std::string filenameOut, int* g_bloc
 		//update variables
 		nextBlockId++;
 	}
+
+
+	//update header.blockOffset
+	fout.seekp(header.getSizeInBytesFixPortion(), ios::beg);
+	fout.write((char*)(&(header.blockOffset[0])) ,header.blockOffset.size() * sizeof(std::uint64_t) );
 
 	//close file
 	fout.close();
@@ -242,6 +252,8 @@ int klb_imageIO::writeImage(char* img, int numThreads)
 	const uint32_t blockSizeBytes = header.getBlockSizeBytes();
 	const uint64_t fLength = header.getImageSizeBytes();
 	const std::uint64_t numBlocks = header.calculateNumBlocks();
+	
+	header.blockOffset.resize(numBlocks);
 
 	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
 	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
@@ -256,7 +268,7 @@ int klb_imageIO::writeImage(char* img, int numThreads)
 	std::vector<std::thread> threads;
 	for (int i = 0; i < numThreads; ++i)
 	{
-		threads.push_back(std::thread(&klb_imageIO::blockCompressor, this, img, header.xyzct, g_blockSize, header.blockSize, header.getBytesPerPixel(), &blockId));
+		threads.push_back(std::thread(&klb_imageIO::blockCompressor, this, img, g_blockSize, &blockId));
 		
 	}
 
