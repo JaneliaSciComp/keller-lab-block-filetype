@@ -17,8 +17,10 @@
 #include <string>
 #include <mutex>
 #include <condition_variable>
+#include <vector>
 
 #include "klb_imageHeader.h"
+#include "klb_circularDequeue.h"
 
 
 class klb_imageIO
@@ -56,10 +58,9 @@ private:
 	static std::mutex				g_lockblockId;//so each worker reads a unique blockId
 	static std::condition_variable	g_queuecheck;//to notify writer that blocks are ready
 
-
 	//functions to call for each thread
-	void blockWriter(char* buffer, std::string filenameOut, int* g_blockSize, const std::uint64_t numBlocks);	
-	void blockCompressor(char* buffer, int* g_blockSize, uint64_t *blockId);
+	void blockWriter(char* buffer, std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq);
+	void blockCompressor(char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId);
 };
 
 

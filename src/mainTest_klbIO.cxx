@@ -26,6 +26,7 @@ typedef std::chrono::high_resolution_clock Clock;
 
 int main(int argc, const char** argv)
 {
+	int numThreads = 12;//<= 0 indicates use as many as possible
 	std::uint32_t	xyzct[KLB_DATA_DIMS] = {1002, 414, 111, 1, 1};
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 128, 32, 1, 1};
 
@@ -54,7 +55,7 @@ int main(int argc, const char** argv)
 
 
 	auto t1 = Clock::now();
-	int err = imgIO.writeImage((char*)img, -1);//all the threads available
+	int err = imgIO.writeImage((char*)img, numThreads);//all the threads available
 	if (err > 0)
 		return 2;
 
@@ -64,7 +65,7 @@ int main(int argc, const char** argv)
 	delete[] img;
 
 
-	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms"<< std::endl;
+	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using "<<numThreads<<" threads"<< std::endl;
 
 	return 0;
 }
