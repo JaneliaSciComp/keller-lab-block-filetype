@@ -26,7 +26,7 @@ klb_circular_dequeue::klb_circular_dequeue(int blockSizeBytes_, int numBlocks_) 
 	dataBuffer = new char[blockSizeBytes * numBlocks];
 	readIdx = 0;
 	writeIdx = 0;
-	numTaken = 0;
+	numTaken = ATOMIC_VAR_INIT( 0 );
 }
 
 
@@ -36,7 +36,7 @@ klb_circular_dequeue& klb_circular_dequeue::operator=(const klb_circular_dequeue
 	{
 		readIdx = p.readIdx;
 		writeIdx = p.writeIdx;
-		numTaken = p.numTaken;
+		std::atomic_store(&numTaken, std::atomic_load(&(p.numTaken)));
 		memcpy(dataBuffer, p.dataBuffer, blockSizeBytes * numBlocks);
 	}
 	return *this;
@@ -48,7 +48,7 @@ klb_circular_dequeue::klb_circular_dequeue(const klb_circular_dequeue& p) : bloc
 
 	readIdx = p.readIdx;
 	writeIdx = p.writeIdx;
-	numTaken = p.numTaken;
+	std::atomic_store(&numTaken, std::atomic_load(&(p.numTaken)));
 
 	dataBuffer = new char[blockSizeBytes * numBlocks];
 	memcpy(dataBuffer, p.dataBuffer, blockSizeBytes * numBlocks);	
@@ -66,7 +66,7 @@ klb_circular_dequeue::~klb_circular_dequeue()
 char *klb_circular_dequeue::getReadBlock()
 {
 
-	if (readIdx == writeIdx)//nothing to read
+	if (std::atomic_load(&numTaken) == 0)//nothing to read
 		return NULL;
 	else
 		return (&(dataBuffer[readIdx * blockSizeBytes]));
@@ -75,36 +75,38 @@ char *klb_circular_dequeue::getReadBlock()
 void klb_circular_dequeue::popReadBlock()
 {
 	
-	if (readIdx != writeIdx)//nothing to be popped
+	if (std::atomic_load(&numTaken) > 0)//something to pop
 	{
-		readIdx++;
-		numTaken--;
+		std::atomic_fetch_sub(&numTaken, 1);
+		readIdx++;		
 		if (readIdx == numBlocks)//restart the queue
 		{
 			readIdx = 0;			
 		}
 		g_writeWait.notify_one();//if a thread was waiting to get a writing block wake it up
-	}
+	}	
 }
 
 //=================================================================
-char *klb_circular_dequeue::reserveWriteBlock()
+char* klb_circular_dequeue::getWriteBlock()
 {
 		
 	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock 
-	g_writeWait.wait(locker, [&](){return ( numTaken < numBlocks ); });//releases the lock until notify. If condition is not satisfied, it waits again
-	
+	g_writeWait.wait(locker, [&](){return (std::atomic_load(&numTaken) < numBlocks); });//releases the lock until notify. If condition is not satisfied, it waits again
+		
+	char* ptr = &(dataBuffer[writeIdx * blockSizeBytes]);	
+	locker.unlock();	
 
-	char* ptr = &(dataBuffer[writeIdx * blockSizeBytes]);
+	return ptr;
+}
+
+//=================================================================
+void klb_circular_dequeue::pushWriteBlock()
+{	
 	writeIdx++;
-	numTaken++;
 	if (writeIdx == numBlocks)
 	{
-		writeIdx = 0;		
+		writeIdx = 0;
 	}
-
-	//cout << "DEBUGGING: numTaken =" << numTaken << endl;
-
-	locker.unlock();
-	return ptr;
+	std::atomic_fetch_add(&numTaken, 1);
 }

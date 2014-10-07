@@ -21,6 +21,7 @@
 
 #include "klb_imageHeader.h"
 #include "klb_circularDequeue.h"
+#include "klb_ROI.h"
 
 
 class klb_imageIO
@@ -48,9 +49,14 @@ public:
 
 	/*
 	\brief	Main function to save an image. We assume the correct header has been set prior to calling this function. 
-			img is modified inside the function to do the compression in place
 	*/
-	int writeImage(char* img, int numThreads);
+	int writeImage(const char* img, int numThreads);
+
+
+	/*
+	\brief	Main function to read an image (or part of an image defined by ROI).We assume the correct header has been set prior to calling this function. 
+	*/
+	int readImage(char* img, const klb_ROI* ROI, int numThreads);
 
 protected:
 
@@ -59,8 +65,10 @@ private:
 	static std::condition_variable	g_queuecheck;//to notify writer that blocks are ready
 
 	//functions to call for each thread
-	void blockWriter(char* buffer, std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq);
-	void blockCompressor(char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId);
+	void blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq);
+	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId);
+
+	void blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI);
 };
 
 

@@ -81,6 +81,8 @@ public:
 	std::uint32_t getBlockSizeBytes();
 	std::uint64_t getImageSizeBytes();
 	std::uint64_t getImageSizePixels();
+	size_t getBlockCompressedSizeBytes(size_t blockId);
+	std::uint64_t getBlockOffset(size_t blockIdx);//offset in compressed file without counting header (so you have to add getSizeInBytes() for total offset
 
 protected:
 

@@ -9,7 +9,7 @@
 *  Created on : October 2nd, 2014
 * Author : Fernando Amat
 *
-* \brief Implements a ciruclar queue to store chunks of  data.BlockCompressort writes into it and blockWirter reads from it. It is thread safe
+* \brief Implements a ciruclar queue to store chunks of  data.BlockCompressort writes into it and blockWirter reads from it. It is thread safe as long as there is only one consumer and one producer in two separate threads (not ready for multiple producer/consumers).
 *
 *
 */
@@ -19,6 +19,7 @@
 
 #include <condition_variable>
 #include <mutex>
+#include <atomic>
 
 class klb_circular_dequeue
 {
@@ -37,7 +38,8 @@ public:
 	//main functions
 	char* getReadBlock();//once you read the block it DOES NOT allow you to overwrite it. you have to call popReadBlock. Returns NULL if nothing is available
 	void popReadBlock();//releases the oldest read block if there is any to release
-	char* reserveWriteBlock();//return NULL if it cannot write because queue is full
+	char* getWriteBlock();//return NULL if it cannot write because queue is full
+	void pushWriteBlock();//indiciates block is ready to be written
 
 protected:
 
@@ -46,7 +48,7 @@ private:
 	const int blockSizeBytes;//number of bytes per block
 	const int numBlocks;//number of blocks that can be stored
 	int readIdx, writeIdx;//index within the dequeu to read / write next element
-	int numTaken;//count number of elements taken so we avoid spill over
+	std::atomic<int> numTaken;//count number of elements taken so we avoid spill over
 };
 
 

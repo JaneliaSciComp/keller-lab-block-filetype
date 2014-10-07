@@ -172,3 +172,32 @@ int klb_image_header::readHeader(const char *filename)
 	fid.close();
 	return 0;
 };
+
+//==========================================================
+size_t  klb_image_header::getBlockCompressedSizeBytes(size_t blockIdx)
+{
+	if (blockIdx >= blockOffset.size())
+		return 0;
+	else if (blockIdx == 0 )//first block
+	{
+		return blockOffset[blockIdx];
+	}
+	else{
+		return blockOffset[blockIdx] - blockOffset[blockIdx - 1];
+	}
+
+}
+
+//======================================================
+std::uint64_t klb_image_header::getBlockOffset(size_t blockIdx)
+{
+	if (blockIdx >= blockOffset.size())
+		return numeric_limits<std::uint64_t>::max();
+	else if (blockIdx == 0)//first block
+	{
+		return 0;
+	}
+	else{
+		return blockOffset[blockIdx - 1];
+	}
+}
