@@ -22,6 +22,11 @@ target_link_libraries (klblib bz2lib )
 ADD_EXECUTABLE(test_klbIO mainTest_klbIO.cxx)
 target_link_libraries (test_klbIO klblib)
 
+#executable to test klblib library for speed and size in real data
+ADD_EXECUTABLE(speed_klbIO mainTestSpeed_klbIO.cxx)
+target_link_libraries (speed_klbIO klblib)
+
+
 #small executable to test C++11 std::threads and compare it to pbzip2
 ADD_EXECUTABLE(testPbzip2_Cpp11Threads testPbzip2_Cpp11Threads.cxx)
 target_link_libraries ( testPbzip2_Cpp11Threads bz2lib )
