@@ -1,5 +1,5 @@
 /*
-*  readKLBstack.cpp
+*  readKLBslice.cpp
 *
 *  Created on: October 13, 2014
 *      Author: Fernando Amat
@@ -9,7 +9,7 @@
 *     See licenseGMEM.txt for full license and copyright notice.
 *     
 *     \brief Set of utilities to read/write KLB format
-*       im = readKLBstack(filename, numThreads)     
+*       header = readKLBslice(filename, slice, dim , numThreads)     
 */
 
 
@@ -36,19 +36,19 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	int numThreads = -1;//by default we use all the threads available
     
 	// check: only one input and one output argument
-	if (nrhs < 1)
-		mexErrMsgTxt("Must have one input argument: filename");
+	if (nrhs < 3)
+		mexErrMsgTxt("Must have three input arguments: filename, slice, dimension");
 	if (nlhs !=1)
 	    mexErrMsgTxt("Must have one output argument");
 	if (mxIsChar(prhs[0]) != 1)
 		mexErrMsgTxt("Input 1 must be a string");
 
 
-	if (nrhs > 1)//set number of threads
+	if (nrhs > 3)//set number of threads
 	{
-		if (mxIsEmpty(prhs[1]) == false)
+		if (mxIsEmpty(prhs[3]) == false)
 		{
-			numThreads = (int)(mxGetPr(prhs[1])[0]);
+			numThreads = (int)(mxGetPr(prhs[3])[0]);
 		}
 	}
 
@@ -56,27 +56,39 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	filename = mxArrayToString(prhs[0]);
 	string filenameOut(filename);
 	
+	//read other inputs
+	int slice = ((int)(mxGetPr(prhs[1])[0])) - 1;//C-indexing
+	int dimSlice = ((int)(mxGetPr(prhs[2])[0])) - 1;//C-indexing
 
+	if (dimSlice >= 3 || dimSlice < 0)
+		mexErrMsgTxt("Code only ready for slices in X, Y or Z. So dimSlice has to be 1, 2 or 3");
+	
 	//read header
 	klb_imageIO imgFull(filenameOut);
 	int error = imgFull.readHeader();
 	if (error > 0)
-		mexErrMsgTxt("Error reading the header of the image");
+		mexErrMsgTxt("Error reading the image");
 
+	//define region of interest
+	klb_ROI ROIfull;
+	ROIfull.defineSlice(slice, dimSlice, imgFull.header.xyzct);
 
-	//set dimensionality
-	mwSize ndims = KLB_DATA_DIMS;
-	mwSize dims[KLB_DATA_DIMS];
-	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
-		dims[ii] = imgFull.header.xyzct[ii];
+	//set dimensionality of the slice
+	mwSize ndims = 2;
+	mwSize dims[2];
 
-	//squeeze
-	int pp = KLB_DATA_DIMS - 1;
-	while (pp>= 0 && dims[pp] == 1)
+	int count = 0;
+	for (int ii = 0; ii < 3; ii++)
 	{
-		ndims--;
-		pp--;
+		if (ii == dimSlice)
+			continue;
+		dims[count++] = imgFull.header.xyzct[ii];
 	}
+	
+		
+
+
+	
 		
 
 	//allocate space for image on the output array according to datat type
@@ -126,12 +138,10 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 		mexErrMsgTxt("Data type not supported");
 	}
 
-	//read image
-	klb_ROI ROIfull; 
-	ROIfull.defineFullImage(imgFull.header.xyzct);
+	//read image		
 	error = imgFull.readImage((char*)(mxGetData(plhs[0])), &ROIfull, numThreads);
 	if (error > 0)
-		mexErrMsgTxt("Error reading the image");
+		mexErrMsgTxt("Error reading the image slice");
 
 	//release memory	
     mxFree(filename);

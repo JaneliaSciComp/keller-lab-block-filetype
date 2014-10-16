@@ -139,7 +139,7 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	dims = mxGetDimensions(prhs[0]);
 	for (int ii = 0; ii < ndims; ii++)
 		imgIO.header.xyzct[ii] = dims[ii];
-        
+
     //setting data type
 	switch (mxGetClassID(prhs[0]))
 	{
