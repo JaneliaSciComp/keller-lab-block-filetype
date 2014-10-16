@@ -84,14 +84,15 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 		(*blockId)++;
 		locker.unlock();
 
-
-#ifdef DEBUG_PRINT_THREADS
-		printf("Thread %d reading block %d\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t);
-#endif
-
 		//check if we can access data or we cannot read longer
 		if (blockId_t >= numBlocks)
 			break;
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d reading block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
 
 		//-------------------read block-----------------------------------
 
@@ -184,6 +185,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Thread %d finished compressing block %d into %d bytes\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int) sizeCompressed);
+		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 	}
 
@@ -275,7 +277,8 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 			continue;//process another block
 
 #ifdef DEBUG_PRINT_THREADS
-		printf("Thread %d reading block %d\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t);
+		printf("Thread %d reading block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 
 		
@@ -385,6 +388,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Thread %d finished decompressing block %d into %d bytes\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)gcount);
+		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 	}
 
@@ -423,11 +427,13 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Writer trying to append block %d out of %d\n", (int)nextBlockId, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 		g_queuecheck.wait(locker, [&](){return (g_blockSize[nextBlockId] >= 0); });//releases the lock until notify. If condition is not satisfied, it waits again
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Writer appending block %d out of %d with %d bytes\n", (int)nextBlockId, (int) numBlocks,g_blockSize[nextBlockId]);
+		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 				
 		//write block
@@ -475,6 +481,12 @@ klb_imageIO::klb_imageIO(const std::string &filename_)
 
 int klb_imageIO::writeImage(const char* img, int numThreads)
 {
+	//redirect standard out
+#ifdef DEBUG_PRINT_THREADS
+	freopen("E:/temp/cout_klb_imageIO.txt", "w", stdout);
+	cout << "Redirecting stdout for klb_imageIO::writeImage" << endl;
+#endif
+
 	if (numThreads <= 0)//use maximum available
 		numThreads = std::thread::hardware_concurrency();
 

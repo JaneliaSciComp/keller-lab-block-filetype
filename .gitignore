@@ -1,1 +1,3 @@
 build
+*.asv
+*.mexw64*

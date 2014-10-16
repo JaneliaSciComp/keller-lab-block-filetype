@@ -34,12 +34,12 @@ int main(int argc, const char** argv)
 
 
 	//very large size to test > 4GB files	
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 2001, 2012, 2024, 1, 1 };
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 256, 256, 32, 1, 1 };
+	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 2001, 2012, 2024, 1, 1 };
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 256, 256, 32, 1, 1 };
 
 	//medium size
-	//std::uint32_t	xyzct[KLB_DATA_DIMS] = {1002, 200, 54, 1, 1};
-	//std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 256, 32, 1, 1};
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = {1002, 200, 54, 1, 1};
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 256, 32, 1, 1};
 
 	//small size for debugging purposes
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 90, 99, 110, 1, 1 };
