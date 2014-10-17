@@ -34,12 +34,17 @@ using namespace std;
 std::mutex				klb_imageIO::g_lockblockId;//so each worker reads a unique blockId
 std::condition_variable	klb_imageIO::g_queuecheck;//to notify writer that blocks are ready
 
-
+//Round a / b to nearest higher integer value (T should be an integer class)
+template<class T>
+inline int iDivUp(const T a, const T b){
+	return (a % b != 0) ? (a / b + 1) : (a / b);
+}
 
 //========================================================
 //======================================================
-void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId)
+void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag)
 {
+	*errFlag = 0;
 	int BWTblockSize = 9;//maximum compression
 	std::uint64_t blockId_t;
 	int gcount;//read bytes
@@ -68,6 +73,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 	if (header.compressionType == 1 && blockSizeBytes < 100 * 1024)
 	{
 		std::cout << "ERROR: compression BZIP: blocks need to be at least 100K for the BWT transform" << endl;
+		*errFlag = 10;
 		return;
 	}
 	BWTblockSize = std::min( BWTblockSize, (int) (blockSizeBytes / 102400));//packages of 100K
@@ -167,12 +173,14 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 				   if (ret != BZ_OK)
 				   {
 					   std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << std::endl;
+					   *errFlag = 2;
 					   sizeCompressed = 0;
 				   }
 				   break;
 		}
 		default:
 			std::cout << "ERROR: workerfunc: compression type not implemented" << std::endl;
+			*errFlag = 5;
 			sizeCompressed = 0;
 		}
 		cq->pushWriteBlock();//notify content is ready in the queue
@@ -196,13 +204,15 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 }
 
 //======================================================
-void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI)
+void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI, int *errFlag)
 {
+	*errFlag = 0;
 	//open file to read elements
 	ifstream fid(filename.c_str(), ios::binary | ios::in);
 	if (fid.is_open() == false)
 	{
 		cout << "ERROR: blockUncompressor: thread opening file " << filename << endl;
+		*errFlag = 3;
 		return;
 	}
 
@@ -303,12 +313,14 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 				   if (ret != BZ_OK)
 				   {
 					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << std::endl;
+					   *errFlag = true;
 					   gcount = 0;
 				   }
 				   break;
 		}
 		default:
 			std::cout << "ERROR: workerfunc: decompression type not implemented" << std::endl;
+			*errFlag = 5;
 			sizeCompressed = 0;
 		}
 
@@ -402,8 +414,9 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 
 //=========================================================================
 //writes compressed blocks sequentially as they become available (in order) from the workers
-void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq)
+void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag)
 {
+	*errFlag = 0;
 	std::int64_t nextBlockId = 0, offset = 0;
 	std::uint64_t numBlocks = header.getNumBlocks();
 	header.blockOffset.resize(numBlocks);//just in case it has not been setup
@@ -414,6 +427,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	{
 		std::cout << "ERROR: file " << filenameOut << " could not be opened" << std::endl;
 		nextBlockId = numBlocks;
+		*errFlag = 5;
 	}
 
 	//write header
@@ -481,6 +495,7 @@ klb_imageIO::klb_imageIO(const std::string &filename_)
 
 int klb_imageIO::writeImage(const char* img, int numThreads)
 {
+
 	//redirect standard out
 #ifdef DEBUG_PRINT_THREADS
 	freopen("E:/temp/cout_klb_imageIO.txt", "w", stdout);
@@ -490,11 +505,27 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	if (numThreads <= 0)//use maximum available
 		numThreads = std::thread::hardware_concurrency();
 
+
+	//safety checks to avoid blocksize too large
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		header.blockSize[ii] = std::min(header.blockSize[ii], header.xyzct[ii]);//block size cannot be larger than dimensions
+
+	//set constants
 	const uint32_t blockSizeBytes = header.getBlockSizeBytes();
-	const uint64_t fLength = header.getImageSizeBytes();
+	const uint64_t fLength = header.getImageSizeBytes();			
 	const std::uint64_t numBlocks = header.calculateNumBlocks();
 	
 	header.blockOffset.resize(numBlocks);
+
+	//moving this here (instead of threads) to avoid having to mess the code with multithread exception handling
+	if (header.compressionType == 1 && blockSizeBytes < 100 * 1024)
+	{
+		std::cout << "ERROR: compression BZIP: blocks need to be at least 100K for the BWT transform" << endl;
+		return 10;
+	}
+
+	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
+	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
 
 	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
 	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
@@ -506,25 +537,30 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	//generate circular queues to exchange blocks between read write
 	int numBlocskPerQueue = std::max(numThreads, 5);//total memory = numThreads * blockSizeBytes * numBlocksPerQueue so it should be low. Also, not many blocks should be queued in general
 	numBlocskPerQueue = std::min(numBlocskPerQueue, 20);
+	numBlocskPerQueue = std::min(numBlocskPerQueue, (int)iDivUp(numBlocks, (std::uint64_t)numThreads));
+
 	//TODO: find the best method to adjust this number automatically
 	klb_circular_dequeue** cq = new klb_circular_dequeue*[numThreads];
 	for (int ii = 0; ii < numThreads; ii++)
 		cq[ii] = new klb_circular_dequeue(blockSizeBytes, numBlocskPerQueue);
 
 	// start the thread to write
-	std::thread writerthread(&klb_imageIO::blockWriter, this, filename, g_blockSize, g_blockThreadId, cq);
+	int errFlagW = 0;
+	std::thread writerthread(&klb_imageIO::blockWriter, this, filename, g_blockSize, g_blockThreadId, cq, &errFlagW);
 
 	// start the working threads
 	std::vector<std::thread> threads;
+	std::vector<int> errFlagVec(numThreads, 0);
 	for (int i = 0; i < numThreads; ++i)
 	{
-		threads.push_back(std::thread(&klb_imageIO::blockCompressor, this, img, g_blockSize, &blockId, g_blockThreadId, cq[i], i));
-		
+		threads.push_back(std::thread(&klb_imageIO::blockCompressor, this, img, g_blockSize, &blockId, g_blockThreadId, cq[i], i, &(errFlagVec[i])));
 	}
 
 	//wait for the workers to finish
 	for (auto& t : threads)
+	{
 		t.join();
+	}
 
 	//wait for the writer
 	writerthread.join();
@@ -536,6 +572,13 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 		delete cq[ii];
 	delete[] cq;
 
+	if (errFlagW != 0)
+		return errFlagW;
+	for (int ii = 0; ii < numThreads; ii++)
+	{
+		if (errFlagVec[ii] != 0)
+			return errFlagVec[ii];
+	}
 	return 0;//TODO: catch errors from threads (especially opening file)
 }
 
@@ -548,15 +591,17 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 	
 	const std::uint64_t numBlocks = header.calculateNumBlocks();
 
-	
+	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
+	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
 
 	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
 		
 	// start the working threads
 	std::vector<std::thread> threads;
+	std::vector<int> errFlagVec(numThreads, 0);
 	for (int i = 0; i < numThreads; ++i)
 	{
-		threads.push_back(std::thread(&klb_imageIO::blockUncompressor, this, img, &blockId, ROI));		
+		threads.push_back(std::thread(&klb_imageIO::blockUncompressor, this, img, &blockId, ROI, &(errFlagVec[i])));
 	}
 
 	//wait for the workers to finish
@@ -565,5 +610,10 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 
 	//release memory
 	
+	for (int ii = 0; ii < numThreads; ii++)
+	{
+		if (errFlagVec[ii] != 0)
+			return errFlagVec[ii];
+	}
 	return 0;//TODO: catch errors from threads (especially opening file)
 }

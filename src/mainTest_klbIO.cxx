@@ -38,8 +38,13 @@ int main(int argc, const char** argv)
 	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 256, 256, 32, 1, 1 };
 
 	//medium size
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = {1002, 200, 54, 1, 1};
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 256, 32, 1, 1};
+	//std::uint32_t	xyzct[KLB_DATA_DIMS] = {1002, 200, 54, 1, 1};
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 256, 32, 1, 1};
+
+	//medium size
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = {1620, 737, 132, 1, 1};
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = {16, 16, 16, 1, 1};
+	filenameOut = string("E:/compressionFormatData/SPM00_TM000550_CM00_CM01_CHN02_CHN03.fusedStack.MATLAB");
 
 	//small size for debugging purposes
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 90, 99, 110, 1, 1 };
@@ -83,22 +88,40 @@ int main(int argc, const char** argv)
 
 	//generate artificial image: gradient is nice since we can debug very fast by visual inspection or random for uncompressibility
 	uint16_t* img = new uint16_t[imgIO.header.getImageSizePixels()];
-	std::random_device rd;
-	std::mt19937 gen(rd());
-	std::uniform_int_distribution<int> dis(-6, 6);
-	for (uint64_t ii = 0; ii < imgIO.header.getImageSizePixels(); ii++)
-	{
-		img[ii] = ii % 65535;
-		//add some noise
-		img[ii] += dis(gen);
-	}
 
-	/*
-	cout << "DEBUGGING: Writing out image at " << "E:/compressionFormatData/debugGradient.raw with " << imgIO.header.getImageSizePixels() <<" voxels"<< endl;
-	ofstream fout("E:/compressionFormatData/debugGradient.raw", ios::binary);
-	fout.write((char*)img, sizeof(uint16_t)* imgIO.header.getImageSizePixels());
-	fout.close();
-	*/
+
+	if (filenameOut.compare("E:/compressionFormatData/debugGradient.klb") == 0)//generate synthetic image
+	{
+		std::random_device rd;
+		std::mt19937 gen(rd());
+		std::uniform_int_distribution<int> dis(-6, 6);
+		for (uint64_t ii = 0; ii < imgIO.header.getImageSizePixels(); ii++)
+		{
+			img[ii] = ii % 65535;
+			//add some noise
+			img[ii] += dis(gen);
+		}
+
+
+		/*
+		cout << "DEBUGGING: Writing out image at " << "E:/compressionFormatData/debugGradient.raw with " << imgIO.header.getImageSizePixels() <<" voxels"<< endl;
+		ofstream fout("E:/compressionFormatData/debugGradient.raw", ios::binary);
+		fout.write((char*)img, sizeof(uint16_t)* imgIO.header.getImageSizePixels());
+		fout.close();
+		*/
+	}
+	else{//read image
+		ifstream fin(string(filenameOut + ".raw").c_str(), ios::binary | ios::in);
+
+		if (fin.is_open() == false)
+		{
+			cout << "ERROR: opening file "<<filenameOut << endl;
+		}
+		fin.read((char*)img, sizeof(uint16_t)* imgIO.header.getImageSizePixels());
+		fin.close();
+
+		filenameOut += ".klb";
+	}
 
 	
 	cout << "Compressing file to " << filenameOut << endl;

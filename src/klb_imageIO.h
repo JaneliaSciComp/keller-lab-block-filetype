@@ -65,10 +65,10 @@ private:
 	static std::condition_variable	g_queuecheck;//to notify writer that blocks are ready
 
 	//functions to call for each thread
-	void blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq);
-	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId);
+	void blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag);
+	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
 
-	void blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI);
+	void blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI, int* errFlag);
 };
 
 

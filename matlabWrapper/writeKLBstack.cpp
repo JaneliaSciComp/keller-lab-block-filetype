@@ -190,8 +190,16 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
     
 	error = imgIO.writeImage((char*)(mxGetData(prhs[0])), numThreads);//all the threads available
 	if (error > 0)
-		mexErrMsgTxt("Error reading and decompresing the image");
-    
+    {
+        switch(error)
+        {
+            case 10:
+                mexErrMsgTxt("Error compression BZIP: blocks need to be at least 100K for the BWT transform");
+                break;
+            default:
+                mexErrMsgTxt("Error reading and decompresing the image");
+        }
+    }
 	//release memory	
     mxFree(filename);
 };
