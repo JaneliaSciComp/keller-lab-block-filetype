@@ -36,7 +36,7 @@ std::condition_variable	klb_imageIO::g_queuecheck;//to notify writer that blocks
 
 //Round a / b to nearest higher integer value (T should be an integer class)
 template<class T>
-inline int iDivUp(const T a, const T b){
+inline T iDivUp(const T a, const T b){
 	return (a % b != 0) ? (a / b + 1) : (a / b);
 }
 
@@ -69,14 +69,10 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 			xyzctCum[ii] = xyzctCum[ii - 1] * header.xyzct[ii - 1];
 	}
 	char* bufferIn = new char[blockSizeBytes];
-
-	if (header.compressionType == 1 && blockSizeBytes < 100 * 1024)
-	{
-		std::cout << "ERROR: compression BZIP: blocks need to be at least 100K for the BWT transform" << endl;
-		*errFlag = 10;
-		return;
-	}
-	BWTblockSize = std::min( BWTblockSize, (int) (blockSizeBytes / 102400));//packages of 100K
+	
+	BWTblockSize = std::min( BWTblockSize, iDivUp ((int)blockSizeBytes , (int)100000) );//packages of 100,000 bytes
+	
+	
 
 	std::uint64_t numBlocks = header.getNumBlocks();
 
@@ -313,7 +309,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 				   if (ret != BZ_OK)
 				   {
 					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << std::endl;
-					   *errFlag = true;
+					   *errFlag = 2;
 					   gcount = 0;
 				   }
 				   break;
@@ -517,12 +513,6 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	
 	header.blockOffset.resize(numBlocks);
 
-	//moving this here (instead of threads) to avoid having to mess the code with multithread exception handling
-	if (header.compressionType == 1 && blockSizeBytes < 100 * 1024)
-	{
-		std::cout << "ERROR: compression BZIP: blocks need to be at least 100K for the BWT transform" << endl;
-		return 10;
-	}
 
 	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
 	numThreads = std::min((std::uint64_t) numThreads, numBlocks);

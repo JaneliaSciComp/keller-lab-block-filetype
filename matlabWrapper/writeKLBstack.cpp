@@ -193,8 +193,8 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
     {
         switch(error)
         {
-            case 10:
-                mexErrMsgTxt("Error compression BZIP: blocks need to be at least 100K for the BWT transform");
+            case 2:
+                mexErrMsgTxt("Error during BZIP compression of one of the blocks");
                 break;
             default:
                 mexErrMsgTxt("Error reading and decompresing the image");
