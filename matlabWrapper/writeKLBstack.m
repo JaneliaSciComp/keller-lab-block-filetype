@@ -13,7 +13,7 @@
 % 
 % pixelSize (optional):   float precision array of length 5 to store pixel size (in um,au,secs) along each dimension. Default value is -1.0 to indicate N/A
 % 
-% blockSize (optional): integer array of length <= 5 to define the block size along each dimension to partition the data. Default value is 256x256x15x1x1. Blocks should be approximately between 1MB-4MB since it is a good trade off between speed and compression ratio.
+% blockSize (optional): integer array of length <= 5 to define the block size along each dimension to partition the data. Default value is 64x64x8x1x1. Blocks should be below 1MB since it is a good trade off between speed and compression ratio. You can use the script testOptimalBlockSize.m to find out the best parameter for your data
 % 
 % compressionType (optional): integer scalar to define compression used to store each block. Right now, 0 = none, 1 = bzip2 (default). You can add your own using the source code of the klb library;
 % 

@@ -142,8 +142,6 @@ int main(int argc, const char** argv)
 
 
 	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using "<<numThreads<<" threads"<< std::endl;
-	
-	return 0;
 
 	//===========================================================================================
 	//===========================================================================================

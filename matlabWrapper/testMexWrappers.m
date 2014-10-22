@@ -4,7 +4,7 @@ function testMexWrappers(im)
 %main options (you can use default if you want to simplify)
 numThreads = -1;
 pixelSize = [];
-blockSize = [256 256 32];
+blockSize = [64 64 8];
 compressionType = [];
 
 
