@@ -42,13 +42,18 @@ int main(int argc, const char** argv)
 	//std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 256, 32, 1, 1};
 
 	//medium size
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = {1620, 737, 132, 1, 1};
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = {16, 16, 16, 1, 1};
-	filenameOut = string("E:/compressionFormatData/SPM00_TM000550_CM00_CM01_CHN02_CHN03.fusedStack.MATLAB");
+	//std::uint32_t	xyzct[KLB_DATA_DIMS] = {1620, 737, 132, 1, 1};
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = {16, 16, 16, 1, 1};
+	//filenameOut = string("E:/compressionFormatData/SPM00_TM000550_CM00_CM01_CHN02_CHN03.fusedStack.MATLAB");
 
 	//small size for debugging purposes
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 90, 99, 110, 1, 1 };
-	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 64, 32, 32, 1, 1 };
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 8, 8, 8, 1, 1 };
+
+	//large size real dataset (zebrafish)
+	filenameOut = string("E:/compressionFormatData/ZebrafishTM200");
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 8, 8, 8, 1, 1 };
 
 	//very small size for debugging purposes (it does not work with bzip2)
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 20, 17, 10, 1, 1 };
@@ -138,7 +143,7 @@ int main(int argc, const char** argv)
 
 	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using "<<numThreads<<" threads"<< std::endl;
 	
-	
+	return 0;
 
 	//===========================================================================================
 	//===========================================================================================

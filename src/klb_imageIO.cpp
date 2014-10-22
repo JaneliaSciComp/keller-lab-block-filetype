@@ -52,6 +52,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 
 	size_t bytesPerPixel = header.getBytesPerPixel();
 	uint32_t blockSizeBytes = bytesPerPixel;
+	uint32_t maxBlockSizeBytesCompressed = maximumBlockSizeCompressedInBytes();
 	uint64_t fLength = bytesPerPixel;
 	uint64_t dimsBlock[KLB_DATA_DIMS];//number of blocks on each dimension
 	uint64_t coordBlock[KLB_DATA_DIMS];//coordinates (in block space). blockId_t = coordBblock[0] + dimsBblock[0] * coordBlock[1] + dimsBblock[0] * dimsBblock[1] * coordBlock[2] + ...
@@ -163,12 +164,12 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 			break;
 		case 1://bzip2
 		{
-				   sizeCompressed = blockSizeBytes;
+				   sizeCompressed = maxBlockSizeBytesCompressed;
 				   // compress the memory buffer (blocksize=9*100k, verbose=0, worklevel=30)				  
 				   int ret = BZ2_bzBuffToBuffCompress(bufferOutPtr, &sizeCompressed, bufferIn, gcount, BWTblockSize, 0, 30);
 				   if (ret != BZ_OK)
 				   {
-					   std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << std::endl;
+					   std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << " with bzip2. Error code " << ret << std::endl;
 					   *errFlag = 2;
 					   sizeCompressed = 0;
 				   }
@@ -439,7 +440,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		printf("Writer trying to append block %d out of %d\n", (int)nextBlockId, (int)numBlocks);
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
-		g_queuecheck.wait(locker, [&](){return (g_blockSize[nextBlockId] >= 0); });//releases the lock until notify. If condition is not satisfied, it waits again
+		g_queuecheck.wait(locker, [&](){return (g_blockSize[nextBlockId] >= 0 && g_blockThreadId[nextBlockId] >= 0); });//releases the lock until notify. If condition is not satisfied, it waits again
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Writer appending block %d out of %d with %d bytes\n", (int)nextBlockId, (int) numBlocks,g_blockSize[nextBlockId]);
@@ -521,8 +522,10 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
 	int* g_blockThreadId = new int[numBlocks];//indicates which thread wrote the nlock so the writer can find the appropoate circular queue
 	for (std::int64_t ii = 0; ii < numBlocks; ii++)
+	{
 		g_blockSize[ii] = -1;
-
+		g_blockThreadId[ii] = -1;
+	}
 
 	//generate circular queues to exchange blocks between read write
 	int numBlocskPerQueue = std::max(numThreads, 5);//total memory = numThreads * blockSizeBytes * numBlocksPerQueue so it should be low. Also, not many blocks should be queued in general
@@ -530,9 +533,10 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	numBlocskPerQueue = std::min(numBlocskPerQueue, (int)iDivUp(numBlocks, (std::uint64_t)numThreads));
 
 	//TODO: find the best method to adjust this number automatically
+	const uint32_t maxBlockSizeBytesCompressed = maximumBlockSizeCompressedInBytes();
 	klb_circular_dequeue** cq = new klb_circular_dequeue*[numThreads];
 	for (int ii = 0; ii < numThreads; ii++)
-		cq[ii] = new klb_circular_dequeue(blockSizeBytes, numBlocskPerQueue);
+		cq[ii] = new klb_circular_dequeue(maxBlockSizeBytesCompressed, numBlocskPerQueue);
 
 	// start the thread to write
 	int errFlagW = 0;
@@ -606,4 +610,34 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 			return errFlagVec[ii];
 	}
 	return 0;//TODO: catch errors from threads (especially opening file)
+}
+
+//======================================================
+std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
+{
+	uint32_t blockSizeBytes = header.getBlockSizeBytes();
+
+	switch (header.compressionType)
+	{
+	case 0://no compression
+		//nothing to do
+		break;
+	case 1://bzip2
+		/*
+			From man page: Compression is  always  performed,  even	 if  the  compressed  file  is
+			slightly	 larger	 than the original.Files of less than about one hun -
+			dred bytes tend to get larger, since the compression  mechanism	has  a
+			constant	 overhead  in  the region of 50 bytes.Random data(including
+			the output of most file compressors) is coded at about  8.05  bits  per
+			byte, giving an expansion of around 0.5%.
+		*/
+		blockSizeBytes = ceil(((float)blockSizeBytes) * 1.05f + 50.0f );
+		break;
+	
+	default:
+		std::cout << "ERROR: maximumBlockSizeCompressedInBytes: compression type not implemented" << std::endl;
+		blockSizeBytes = 0;
+	}
+
+	return blockSizeBytes;
 }

@@ -69,6 +69,8 @@ private:
 	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
 
 	void blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI, int* errFlag);
+
+	std::uint32_t maximumBlockSizeCompressedInBytes();//some formats have overhead so for small blocks of random noise it could be larger than block size
 };
 
 

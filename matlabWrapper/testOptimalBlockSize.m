@@ -25,35 +25,29 @@ bytesPerPixel = qq.bytes / prod(imSize);
 results = nan(1*8*16,6);
 filenameVec = cell(8*8*16,1);
 count = 0;
-%for bx = linspace(32,256,8)
-for bx = 256
-    for by = linspace(8,128,16)
-        for bz = linspace(8,128,16)
+for bx = linspace(8,64,8)
+    for by = linspace(8,64,8)
+        for bz = [8 16]
             
             blockSize = [bx by bz]
             
             
-            if( prod(blockSize) * bytesPerPixel / 2^10 >= 100 ) 
-                tic;
-                filenameB = [basename '_' num2str( blockSize(1) ) '_' num2str( blockSize(2) ) '_' num2str( blockSize(3) ) '.klb'];
-                writeKLBstack(im, filenameB ,numThreads,pixelSize,blockSize,compressionType);
-                tt = toc;
-                s = dir(filenameB);
-                s = s.bytes / 2^10;        
-                ttR = -1;
-            else
-                filenameB = [];
-                tt = nan;
-                s = nan;
-                ttR = nan;
-            end
+            
+            tic;
+            filenameB = [basename '_' num2str( blockSize(1) ) '_' num2str( blockSize(2) ) '_' num2str( blockSize(3) ) '.klb'];
+            writeKLBstack(im, filenameB ,numThreads,pixelSize,blockSize,compressionType);
+            tt = toc;
+            s = dir(filenameB);
+            s = s.bytes / 2^10;
+            ttR = -1;
             
             
             
             count = count + 1;
             results(count,:) = [bx by bz tt s ttR];%time(secs) , size(in KB)                                           
             filenameVec{count} = filenameB;
-        end
+           
+        end        
         save('blockSizeResults\temp.mat','results');
     end
 end
@@ -74,3 +68,5 @@ for ii = 1:length(filenameVec)
     
     delete(filenameVec{ii});
 end
+
+save('blockSizeResults\temp.mat','results');
