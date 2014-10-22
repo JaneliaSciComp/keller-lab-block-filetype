@@ -2,7 +2,6 @@
 project ( imageBlockAPI_project )
 cmake_minimum_required ( VERSION 2.8 )
 
-
 #add bzip2 library
 include_directories ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
@@ -28,6 +27,10 @@ target_link_libraries (speed_klbIO klblib)
 
 
 IF( MINGW )
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
+ENDIF()
+
+IF( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" ) 
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
 ENDIF()
 
