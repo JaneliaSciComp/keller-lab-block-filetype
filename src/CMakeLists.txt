@@ -27,6 +27,10 @@ ADD_EXECUTABLE(speed_klbIO mainTestSpeed_klbIO.cxx)
 target_link_libraries (speed_klbIO klblib)
 
 
+IF( MINGW )
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
+ENDIF()
+
 #small executable to test C++11 std::threads and compare it to pbzip2
 ADD_EXECUTABLE(testPbzip2_Cpp11Threads testPbzip2_Cpp11Threads.cxx)
 target_link_libraries ( testPbzip2_Cpp11Threads bz2lib )

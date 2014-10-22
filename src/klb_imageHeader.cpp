@@ -13,6 +13,7 @@
 *
 */
 
+#include <limits>
 #include "klb_imageHeader.h"
 
 

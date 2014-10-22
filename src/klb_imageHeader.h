@@ -42,6 +42,8 @@ PBZIP2 = 1
 #include <vector>
 #include <iostream>
 #include <fstream>
+#include <cstring>
+#include <math.h>
 
 typedef float  float32_t;
 typedef double float64_t;
