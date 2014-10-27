@@ -20,6 +20,7 @@
 #include <thread>
 #include <algorithm>
 #include <mutex>
+#include <chrono>
 #include <stdlib.h>     /* div, div_t */
 #include "klb_imageIO.h"
 #include "bzlib.h"
@@ -33,6 +34,10 @@ using namespace std;
 //static variables for the class
 std::mutex				klb_imageIO::g_lockblockId;//so each worker reads a unique blockId
 std::condition_variable	klb_imageIO::g_queuecheck;//to notify writer that blocks are ready
+
+#ifdef PROFILE_COMPRESSION
+std::atomic <long long> klb_imageIO::g_countCompression;//in case we want to measure only compression timing
+#endif
 
 //Round a / b to nearest higher integer value (T should be an integer class)
 template<class T>
@@ -155,6 +160,10 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 		char* bufferOutPtr = cq->getWriteBlock(); //this operation is thread safe	
 
 
+#ifdef PROFILE_COMPRESSION
+		typedef std::chrono::high_resolution_clock Clock;
+		auto t1 = Clock::now();
+#endif
 		//apply compression to block
 		switch (header.compressionType)
 		{
@@ -180,6 +189,13 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 			*errFlag = 5;
 			sizeCompressed = 0;
 		}
+
+#ifdef PROFILE_COMPRESSION
+		auto t2 = Clock::now();
+		long long auxChrono = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();//in ms
+		atomic_fetch_add(&g_countCompression, auxChrono);
+#endif
+
 		cq->pushWriteBlock();//notify content is ready in the queue
 
 		//signal blockWriter that this block can be writen
@@ -421,22 +437,19 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, uint64_t *blockId, cha
 	std::uint64_t offset;//size of block in bytes after compression
 
 
-	size_t bytesPerPixel = header.getBytesPerPixel();
-	uint32_t blockSizeBytes = bytesPerPixel;
-	uint64_t fLength = bytesPerPixel;
+	const size_t bytesPerPixel = header.getBytesPerPixel();
+	uint32_t blockSizeBytes = bytesPerPixel;	
 	uint64_t dimsBlock[KLB_DATA_DIMS];//number of blocks on each dimension
 	uint64_t coordBlock[KLB_DATA_DIMS];//coordinates (in block space). blockId_t = coordBblock[0] + dimsBblock[0] * coordBlock[1] + dimsBblock[0] * dimsBblock[1] * coordBlock[2] + ...
 	uint64_t offsetBuffer;//starting offset for each buffer within ROI
-	uint32_t offsetBufferBlock;////starting offset for each buffer within decompressed block
 	uint32_t blockSizeAux[KLB_DATA_DIMS];//for border cases where the blocksize might be different
 	uint64_t xyzctCum[KLB_DATA_DIMS];//to calculate offsets for each dimension in THE ROI
 	uint64_t offsetHeaderBytes = header.getSizeInBytes();
 
-	xyzctCum[0] = 1;
+	xyzctCum[0] = bytesPerPixel;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
 		blockSizeBytes *= header.blockSize[ii];
-		fLength *= header.xyzct[ii];
 		dimsBlock[ii] = ceil((float)(header.xyzct[ii]) / (float)(header.blockSize[ii]));
 		if (ii > 0)
 			xyzctCum[ii] = xyzctCum[ii - 1] * header.xyzct[ii - 1];
@@ -510,53 +523,49 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, uint64_t *blockId, cha
 
 		//-------------------parse bufferIn to bufferOut image buffer-----------------------------------		
 
-		//calculate block size in case we had border block
-		uint32_t blockSizeAuxCum[KLB_DATA_DIMS];
+		//calculate block size in case we had border block				
 		blockSizeAux[0] = std::min(header.blockSize[0], (uint32_t)(header.xyzct[0] - coordBlock[0]));
-		blockSizeAuxCum[0] = 1;
 		for (int ii = 1; ii < KLB_DATA_DIMS; ii++)
 		{
 			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
-			blockSizeAuxCum[ii] = blockSizeAuxCum[ii - 1] * blockSizeAux[ii - 1];
 		}
-
+		
 				
 
 		//calculate starting offset in the buffer in image space
 		offsetBuffer = 0;
-		offsetBufferBlock = 0;
 		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		{
-			offsetBuffer += coordBlock[ii] * xyzctCum[ii];
+			offsetBuffer += coordBlock[ii] * xyzctCum[ii];//xyzct already has bytesPerPixel
 		}
-		offsetBuffer *= bytesPerPixel;
 
 		//copy block into local buffer bufferIn
 		int auxDim = 1;
 		uint32_t bcount[KLB_DATA_DIMS];
 		memset(bcount, 0, sizeof(uint32_t)* KLB_DATA_DIMS);
+		const size_t bufferCopySize = bytesPerPixel * blockSizeAux[0];
+		char* bufferInPtr = bufferIn;
 		while (auxDim < KLB_DATA_DIMS)
 		{
+			
 			//copy fastest moving coordinate all at once for efficiency
-			memcpy(&(bufferOut[offsetBuffer]), &(bufferIn[offsetBufferBlock]), bytesPerPixel * blockSizeAux[0]);
+			memcpy(&(bufferOut[offsetBuffer]), bufferInPtr, bufferCopySize);
+			bufferInPtr += bufferCopySize;
 
 			//increment counter
 			auxDim = 1;
 			bcount[auxDim]++;
-			offsetBuffer += xyzctCum[auxDim] * bytesPerPixel;//update offset for output buffer		
-			offsetBufferBlock += blockSizeAuxCum[auxDim] * bytesPerPixel;
+			offsetBuffer += xyzctCum[auxDim];//update offset for output buffer. xyzct already has bytesPerPixel		
 
 			while (bcount[auxDim] == blockSizeAux[auxDim])
 			{
-				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim] * bytesPerPixel;//update buffer				
-				offsetBufferBlock -= blockSizeAux[auxDim] * blockSizeAuxCum[auxDim] * bytesPerPixel;
+				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim];//update buffer				
 				bcount[auxDim] = 0;
 				auxDim++;
 				if (auxDim == KLB_DATA_DIMS)
 					break;
 				bcount[auxDim]++;
-				offsetBuffer += xyzctCum[auxDim] * bytesPerPixel; //update buffer
-				offsetBufferBlock += blockSizeAuxCum[auxDim] * bytesPerPixel;
+				offsetBuffer += xyzctCum[auxDim]; //update buffer.xyzct already has bytesPerPixel
 			}
 		}
 		//-------------------end of parse bufferIn to bufferOut image buffer-----------------------------------
@@ -689,6 +698,11 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 		numThreads = std::thread::hardware_concurrency();
 
 
+#ifdef PROFILE_COMPRESSION
+	//reset counter
+	atomic_store(&g_countCompression, 0);
+#endif
+
 	//safety checks to avoid blocksize too large
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		header.blockSize[ii] = std::min(header.blockSize[ii], header.xyzct[ii]);//block size cannot be larger than dimensions
@@ -759,6 +773,13 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 		if (errFlagVec[ii] != 0)
 			return errFlagVec[ii];
 	}
+
+
+#ifdef PROFILE_COMPRESSION
+	long long auxChrono = atomic_load(&g_countCompression);
+	cout << "Average time spent in compression per thread is =" << auxChrono / numThreads << " ms"<<endl;
+#endif
+
 	return 0;//TODO: catch errors from threads (especially opening file)
 }
 

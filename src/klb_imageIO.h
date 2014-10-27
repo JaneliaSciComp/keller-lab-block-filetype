@@ -19,6 +19,12 @@
 #include <condition_variable>
 #include <vector>
 
+
+//#define PROFILE_COMPRESSION //uncomment to check how much is spent in compression
+#ifdef PROFILE_COMPRESSION
+#include <atomic>
+#endif
+
 #include "klb_imageHeader.h"
 #include "klb_circularDequeue.h"
 #include "klb_ROI.h"
@@ -69,7 +75,9 @@ protected:
 private:	
 	static std::mutex				g_lockblockId;//so each worker reads a unique blockId
 	static std::condition_variable	g_queuecheck;//to notify writer that blocks are ready
-
+#ifdef PROFILE_COMPRESSION
+	static std::atomic<long long>	g_countCompression;
+#endif
 	//functions to call for each thread
 	void blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag);
 	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);

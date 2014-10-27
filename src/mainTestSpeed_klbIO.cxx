@@ -29,7 +29,7 @@ int main(int argc, const char** argv)
 {
 	int numThreads = -1;//<= 0 indicates use as many as possible
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
-	int compressionType = 1;//1->bzip2; 0->none
+	int compressionType = 0;//1->bzip2; 0->none
 
 
 	std::string basename("E:/compressionFormatData/ZebrafishTM200");
@@ -43,7 +43,7 @@ int main(int argc, const char** argv)
 	//================================================
 	//common definitions
 	string filenameOut(basename + ".klb");
-	int err;
+	int err = 0;
 	auto t1 = Clock::now();
 	auto t2 = Clock::now();
 	int dim, planeSize, offsetPlane;
@@ -76,7 +76,7 @@ int main(int argc, const char** argv)
 
 
 	t1 = Clock::now();
-	err = imgIO.writeImage((char*)img, numThreads);//all the threads available
+	//err = imgIO.writeImage((char*)img, numThreads);//all the threads available
 	if (err > 0)
 		return 2;
 
@@ -91,28 +91,31 @@ int main(int argc, const char** argv)
 	//===========================================================================================
 	//===========================================================================================
 	
-	cout << endl << endl << "Reading entire image back" << endl;
-	
-	
-	t1 = Clock::now();
-	klb_imageIO imgFull(filenameOut);
+	for (int ii = 0; ii < 10; ii++)
+	{
+		cout << endl << endl << "Reading entire image back" << endl;
 
-	err = imgFull.readHeader();
-	if (err > 0)
-		return err;
-	uint16_t* imgA = new uint16_t[imgFull.header.getImageSizePixels()];
-	
-	//ROIfull.defineFullImage(imgFull.header.xyzct);
-	//err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
-	err = imgFull.readImageFull((char*)imgA, numThreads);
-	if (err > 0)
-		return err;
 
-	t2 = Clock::now();
+		t1 = Clock::now();
+		klb_imageIO imgFull(filenameOut);
 
-	std::cout << "Read full test file at " << filenameOut << " in =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using " << numThreads << " threads" << std::endl;
-	
-	delete[] imgA;
+		err = imgFull.readHeader();
+		if (err > 0)
+			return err;
+		uint16_t* imgA = new uint16_t[imgFull.header.getImageSizePixels()];
+
+		//ROIfull.defineFullImage(imgFull.header.xyzct);
+		//err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
+		err = imgFull.readImageFull((char*)imgA, numThreads);
+		if (err > 0)
+			return err;
+
+		t2 = Clock::now();
+
+		std::cout << "Read full test file at " << filenameOut << " in =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using " << numThreads << " threads" << std::endl;
+		delete[] imgA;
+	}
+	return 0;
 	
 	//===========================================================================================
 	//===========================================================================================
