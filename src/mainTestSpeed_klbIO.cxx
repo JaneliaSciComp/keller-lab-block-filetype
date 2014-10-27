@@ -28,7 +28,7 @@ typedef std::chrono::high_resolution_clock Clock;
 int main(int argc, const char** argv)
 {
 	int numThreads = -1;//<= 0 indicates use as many as possible
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 16, 1, 1};
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 9, 16, 1, 1};
 	int compressionType = 1;//1->bzip2; 0->none
 
 

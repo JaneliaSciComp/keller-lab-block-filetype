@@ -14,6 +14,7 @@
 */
 
 #include <iostream>
+#include <cstring>
 #include "klb_circularDequeue.h"
 
 

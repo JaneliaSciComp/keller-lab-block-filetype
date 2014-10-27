@@ -31,7 +31,7 @@ IF( MINGW )
 ENDIF()
 
 IF( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" ) 
-	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
+	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11 -stdlib=libc++") #to allow C+11 features in older GCC compilers
 ENDIF()
 
 #small executable to test C++11 std::threads and compare it to pbzip2

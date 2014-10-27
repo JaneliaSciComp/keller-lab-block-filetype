@@ -22,11 +22,13 @@ qq = whos('im');
 bytesPerPixel = qq.bytes / prod(imSize);
 
 %results = nan(8*8*16,6);
-results = nan(4*16*16,6);
+results = nan(4*16*1,6);
 count = 0;
 for bx = linspace(8,128,16)
-    for by = linspace(8,128,16)
+    %for by = linspace(8,128,16)
+    by = bx;
         for bz = linspace(8,32,4)
+            
             
             blockSize = [bx by bz]
             
@@ -49,5 +51,5 @@ for bx = linspace(8,128,16)
         end        
         save('blockSizeResults\temp.mat','results');
     end
-end
+%end
 save('blockSizeResults\temp.mat','results');
