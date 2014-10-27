@@ -58,6 +58,12 @@ public:
 	*/
 	int readImage(char* img, const klb_ROI* ROI, int numThreads);
 
+
+	/*
+	\brief We preload all the file in memory and the threads read from memory (not from disk). Consumes more memory but it is XXX faster. It only makes sense to read the whole image
+	*/
+	int readImageFull(char* imgOut, int numThreads);
+
 protected:
 
 private:	
@@ -69,6 +75,7 @@ private:
 	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
 
 	void blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI, int* errFlag);
+	void blockUncompressorInMem(char* bufferOut, uint64_t *blockId, char* bufferImgFull, int* errFlag);
 
 	std::uint32_t maximumBlockSizeCompressedInBytes();//some formats have overhead so for small blocks of random noise it could be larger than block size
 };

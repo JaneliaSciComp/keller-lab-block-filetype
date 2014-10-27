@@ -53,7 +53,7 @@ int main(int argc, const char** argv)
 	//large size real dataset (zebrafish)
 	filenameOut = string("E:/compressionFormatData/ZebrafishTM200");
 	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 8, 8, 8, 1, 1 };
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 64, 16, 1, 1 };
 
 	//very small size for debugging purposes (it does not work with bzip2)
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 20, 17, 10, 1, 1 };
@@ -116,6 +116,8 @@ int main(int argc, const char** argv)
 		*/
 	}
 	else{//read image
+		imgIO.filename = string(filenameOut + ".klb");
+		imgXYplane.filename = string(filenameOut + ".klb");
 		ifstream fin(string(filenameOut + ".raw").c_str(), ios::binary | ios::in);
 
 		if (fin.is_open() == false)
@@ -159,8 +161,9 @@ int main(int argc, const char** argv)
 	uint16_t* imgA = new uint16_t[N];
 
 
-	ROIfull.defineFullImage(imgFull.header.xyzct);
-	err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
+	//ROIfull.defineFullImage(imgFull.header.xyzct);
+	//err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
+	err = imgFull.readImageFull((char*)imgA, numThreads);
 	if (err > 0)
 		return err;
 
@@ -174,6 +177,7 @@ int main(int argc, const char** argv)
 	{
 		if (imgA[ii] != img[ii])
 		{
+			cout << "ii = " << ii << ";imgOrig = " << img[ii] << "; imgKLB = " << imgA[ii] << endl;
 			isEqual = false;
 			break;
 		}

@@ -202,3 +202,9 @@ std::uint64_t klb_image_header::getBlockOffset(size_t blockIdx)
 		return blockOffset[blockIdx - 1];
 	}
 }
+
+//======================================================
+std::uint64_t klb_image_header::getCompressedFileSizeInBytes()
+{
+	return getSizeInBytes() + blockOffset.back();
+}

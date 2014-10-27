@@ -127,9 +127,10 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	}
 
 	//read image
-	klb_ROI ROIfull; 
-	ROIfull.defineFullImage(imgFull.header.xyzct);
-	error = imgFull.readImage((char*)(mxGetData(plhs[0])), &ROIfull, numThreads);
+	//klb_ROI ROIfull; 
+	//ROIfull.defineFullImage(imgFull.header.xyzct);
+	//error = imgFull.readImage((char*)(mxGetData(plhs[0])), &ROIfull, numThreads);
+    error = imgFull.readImageFull((char*)(mxGetData(plhs[0])), numThreads);
 	if (error > 0)
 		mexErrMsgTxt("Error reading the image");
 

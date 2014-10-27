@@ -409,6 +409,172 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 
 }
 
+//======================================================
+void klb_imageIO::blockUncompressorInMem(char* bufferOut, uint64_t *blockId, char* bufferImgFull, int *errFlag)
+{
+	*errFlag = 0;
+	
+
+	//define variables
+	std::uint64_t blockId_t;//to know which block we are processing
+	unsigned int sizeCompressed, gcount;
+	std::uint64_t offset;//size of block in bytes after compression
+
+
+	size_t bytesPerPixel = header.getBytesPerPixel();
+	uint32_t blockSizeBytes = bytesPerPixel;
+	uint64_t fLength = bytesPerPixel;
+	uint64_t dimsBlock[KLB_DATA_DIMS];//number of blocks on each dimension
+	uint64_t coordBlock[KLB_DATA_DIMS];//coordinates (in block space). blockId_t = coordBblock[0] + dimsBblock[0] * coordBlock[1] + dimsBblock[0] * dimsBblock[1] * coordBlock[2] + ...
+	uint64_t offsetBuffer;//starting offset for each buffer within ROI
+	uint32_t offsetBufferBlock;////starting offset for each buffer within decompressed block
+	uint32_t blockSizeAux[KLB_DATA_DIMS];//for border cases where the blocksize might be different
+	uint64_t xyzctCum[KLB_DATA_DIMS];//to calculate offsets for each dimension in THE ROI
+	uint64_t offsetHeaderBytes = header.getSizeInBytes();
+
+	xyzctCum[0] = 1;
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+	{
+		blockSizeBytes *= header.blockSize[ii];
+		fLength *= header.xyzct[ii];
+		dimsBlock[ii] = ceil((float)(header.xyzct[ii]) / (float)(header.blockSize[ii]));
+		if (ii > 0)
+			xyzctCum[ii] = xyzctCum[ii - 1] * header.xyzct[ii - 1];
+	}
+
+	std::uint64_t numBlocks = header.getNumBlocks();
+	char* bufferIn = new char[blockSizeBytes];//temporary storage for decompressed block
+	char* bufferPtr;//pointer to preloaded compressed file in memory
+
+	//main loop to keep processing blocks while they are available
+	while (1)
+	{
+		//get the blockId resource
+		std::unique_lock<std::mutex> locker(g_lockblockId);//exception safe
+		blockId_t = (*blockId);
+		(*blockId)++;
+		locker.unlock();
+
+		//check if we have more blocks
+		if (blockId_t >= numBlocks)
+			break;
+
+		//calculate coordinate (in block space)
+		std::uint64_t blockIdx_aux = blockId_t;
+		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		{
+			coordBlock[ii] = blockIdx_aux % dimsBlock[ii];
+			blockIdx_aux -= coordBlock[ii];
+			blockIdx_aux /= dimsBlock[ii];
+			coordBlock[ii] *= header.blockSize[ii];//parsing coordinates to image space (not block anymore)
+		}		
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d reading block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+
+		//uncompress block into temp bufferIn
+		sizeCompressed = header.getBlockCompressedSizeBytes(blockId_t);
+		offset = header.getBlockOffset(blockId_t);
+
+		bufferPtr = &(bufferImgFull[offsetHeaderBytes + offset]);		
+
+		//apply decompression to block
+		switch (header.compressionType)
+		{
+		case 0://no compression
+			gcount = sizeCompressed;
+			memcpy(bufferIn, bufferPtr, gcount);
+			break;
+		case 1://bzip2
+		{
+				   gcount = blockSizeBytes;
+				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferPtr, sizeCompressed, 0, 0);
+				   if (ret != BZ_OK)
+				   {
+					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << std::endl;
+					   *errFlag = 2;
+					   gcount = 0;
+				   }
+				   break;
+		}
+		default:
+			std::cout << "ERROR: workerfunc: decompression type not implemented" << std::endl;
+			*errFlag = 5;
+			sizeCompressed = 0;
+		}
+
+
+
+		//-------------------parse bufferIn to bufferOut image buffer-----------------------------------		
+
+		//calculate block size in case we had border block
+		uint32_t blockSizeAuxCum[KLB_DATA_DIMS];
+		blockSizeAux[0] = std::min(header.blockSize[0], (uint32_t)(header.xyzct[0] - coordBlock[0]));
+		blockSizeAuxCum[0] = 1;
+		for (int ii = 1; ii < KLB_DATA_DIMS; ii++)
+		{
+			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
+			blockSizeAuxCum[ii] = blockSizeAuxCum[ii - 1] * blockSizeAux[ii - 1];
+		}
+
+				
+
+		//calculate starting offset in the buffer in image space
+		offsetBuffer = 0;
+		offsetBufferBlock = 0;
+		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		{
+			offsetBuffer += coordBlock[ii] * xyzctCum[ii];
+		}
+		offsetBuffer *= bytesPerPixel;
+
+		//copy block into local buffer bufferIn
+		int auxDim = 1;
+		uint32_t bcount[KLB_DATA_DIMS];
+		memset(bcount, 0, sizeof(uint32_t)* KLB_DATA_DIMS);
+		while (auxDim < KLB_DATA_DIMS)
+		{
+			//copy fastest moving coordinate all at once for efficiency
+			memcpy(&(bufferOut[offsetBuffer]), &(bufferIn[offsetBufferBlock]), bytesPerPixel * blockSizeAux[0]);
+
+			//increment counter
+			auxDim = 1;
+			bcount[auxDim]++;
+			offsetBuffer += xyzctCum[auxDim] * bytesPerPixel;//update offset for output buffer		
+			offsetBufferBlock += blockSizeAuxCum[auxDim] * bytesPerPixel;
+
+			while (bcount[auxDim] == blockSizeAux[auxDim])
+			{
+				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim] * bytesPerPixel;//update buffer				
+				offsetBufferBlock -= blockSizeAux[auxDim] * blockSizeAuxCum[auxDim] * bytesPerPixel;
+				bcount[auxDim] = 0;
+				auxDim++;
+				if (auxDim == KLB_DATA_DIMS)
+					break;
+				bcount[auxDim]++;
+				offsetBuffer += xyzctCum[auxDim] * bytesPerPixel; //update buffer
+				offsetBufferBlock += blockSizeAuxCum[auxDim] * bytesPerPixel;
+			}
+		}
+		//-------------------end of parse bufferIn to bufferOut image buffer-----------------------------------
+
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d finished decompressing block %d into %d bytes\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)gcount);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+	}
+
+
+	//release memory
+	delete[] bufferIn;
+
+}
+
 //=========================================================================
 //writes compressed blocks sequentially as they become available (in order) from the workers
 void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag)
@@ -611,6 +777,57 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 	}
 	return 0;//TODO: catch errors from threads (especially opening file)
 }
+
+//=================================================
+
+int klb_imageIO::readImageFull(char* imgOut, int numThreads)
+{	
+
+	if (numThreads <= 0)//use maximum available
+		numThreads = std::thread::hardware_concurrency();
+
+	const std::uint64_t numBlocks = header.calculateNumBlocks();
+
+	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
+	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
+
+	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
+
+	//read compressed file from disk into memory
+	//open file to read elements
+	ifstream fid(filename.c_str(), ios::binary | ios::in);
+	if (fid.is_open() == false)
+	{
+		cout << "ERROR: readImageFull: reading file " << filename << endl;
+		return 3;
+	}
+
+	char* imgIn = new char[header.getCompressedFileSizeInBytes()];
+	fid.read(imgIn, header.getCompressedFileSizeInBytes());
+	fid.close();
+
+	// start the working threads
+	std::vector<std::thread> threads;
+	std::vector<int> errFlagVec(numThreads, 0);
+	for (int i = 0; i < numThreads; ++i)
+	{
+		threads.push_back(std::thread(&klb_imageIO::blockUncompressorInMem, this, imgOut, &blockId, imgIn, &(errFlagVec[i])));
+	}
+
+	//wait for the workers to finish
+	for (auto& t : threads)
+		t.join();
+
+	//release memory
+	delete[] imgIn;
+	for (int ii = 0; ii < numThreads; ii++)
+	{
+		if (errFlagVec[ii] != 0)
+			return errFlagVec[ii];
+	}
+	return 0;//TODO: catch errors from threads (especially opening file)
+}
+
 
 //======================================================
 std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()

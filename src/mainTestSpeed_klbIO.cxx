@@ -28,13 +28,17 @@ typedef std::chrono::high_resolution_clock Clock;
 int main(int argc, const char** argv)
 {
 	int numThreads = -1;//<= 0 indicates use as many as possible
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 9, 16, 1, 1};
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
 	int compressionType = 1;//1->bzip2; 0->none
 
 
 	std::string basename("E:/compressionFormatData/ZebrafishTM200");
 	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };	
 	
+	cout << "Testing KLB speed with file " << basename << ".raw and blockSize =";
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		cout << blockSize[ii] << "x";
+	cout << endl;
 	
 	//================================================
 	//common definitions
@@ -98,8 +102,9 @@ int main(int argc, const char** argv)
 		return err;
 	uint16_t* imgA = new uint16_t[imgFull.header.getImageSizePixels()];
 	
-	ROIfull.defineFullImage(imgFull.header.xyzct);
-	err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
+	//ROIfull.defineFullImage(imgFull.header.xyzct);
+	//err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
+	err = imgFull.readImageFull((char*)imgA, numThreads);
 	if (err > 0)
 		return err;
 
