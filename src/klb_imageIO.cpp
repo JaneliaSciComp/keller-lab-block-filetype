@@ -216,7 +216,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 }
 
 //======================================================
-void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI, int *errFlag)
+void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *blockId, const klb_ROI* ROI, int *errFlag)
 {
 	*errFlag = 0;
 	//open file to read elements
@@ -245,7 +245,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 	uint64_t xyzctCum[KLB_DATA_DIMS];//to calculate offsets for each dimension in THE ROI
 	uint64_t offsetHeaderBytes = header.getSizeInBytes();
 
-	xyzctCum[0] = 1;
+	xyzctCum[0] = bytesPerPixel;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
 		blockSizeBytes *= header.blockSize[ii];
@@ -263,10 +263,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 	while (1)
 	{
 		//get the blockId resource
-		std::unique_lock<std::mutex> locker(g_lockblockId);//exception safe
-		blockId_t = (*blockId);
-		(*blockId)++;
-		locker.unlock();
+		blockId_t = atomic_fetch_add(blockId, 1);
 
 		//check if we have more blocks
 		if (blockId_t >= numBlocks)
@@ -344,7 +341,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 		//calculate block size in case we had border block
 		uint32_t blockSizeAuxCum[KLB_DATA_DIMS];
 		blockSizeAux[0] = std::min(header.blockSize[0], (uint32_t)(header.xyzct[0] - coordBlock[0]));
-		blockSizeAuxCum[0] = 1;
+		blockSizeAuxCum[0] = bytesPerPixel;
 		for (int ii = 1; ii < KLB_DATA_DIMS; ii++)
 		{
 			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
@@ -376,34 +373,40 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 		{
 			offsetBuffer += (coordBlock[ii] + bLB[ii] - ROI->xyzctLB[ii]) * xyzctCum[ii];
 			offsetBufferBlock += bLB[ii] * blockSizeAuxCum[ii];
-		}
-		offsetBuffer *= bytesPerPixel;
-		offsetBufferBlock *= bytesPerPixel;
+		}		
+		
 
 		//copy block into local buffer bufferIn
 		int auxDim = 1;
+		const size_t bufferCopySize = bytesPerPixel * blockSizeAux[0];
+		const size_t bufferInOffset = blockSizeAuxCum[1];
+		char* bufferInAux = &(bufferIn[offsetBufferBlock]);
 		while (auxDim < KLB_DATA_DIMS)
 		{
 			//copy fastest moving coordinate all at once for efficiency
-			memcpy(&(bufferOut[offsetBuffer]), &(bufferIn[offsetBufferBlock]), bytesPerPixel * blockSizeAux[0]);
+			//memcpy(&(bufferOut[offsetBuffer]), &(bufferIn[offsetBufferBlock]), bufferCopySize);
+			memcpy(&(bufferOut[offsetBuffer]), bufferInAux, bufferCopySize);
+			bufferInAux += bufferInOffset;
 
 			//increment counter
 			auxDim = 1;
 			bcount[auxDim]++;
-			offsetBuffer += xyzctCum[auxDim] * bytesPerPixel;//update offset for output buffer		
-			offsetBufferBlock += blockSizeAuxCum[auxDim] * bytesPerPixel;
+			offsetBuffer += xyzctCum[auxDim];//update offset for output buffer		
+			offsetBufferBlock += blockSizeAuxCum[auxDim];
 
 			while (bcount[auxDim] == bUB[auxDim])
 			{
-				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim] * bytesPerPixel;//update buffer				
-				offsetBufferBlock -= blockSizeAux[auxDim] * blockSizeAuxCum[auxDim] * bytesPerPixel;
+				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim];//update buffer				
+				offsetBufferBlock -= blockSizeAux[auxDim] * blockSizeAuxCum[auxDim];
 				bcount[auxDim] = bLB[auxDim];
 				auxDim++;
 				if (auxDim == KLB_DATA_DIMS)
 					break;
 				bcount[auxDim]++;
-				offsetBuffer += xyzctCum[auxDim] * bytesPerPixel; //update buffer
-				offsetBufferBlock += blockSizeAuxCum[auxDim] * bytesPerPixel;
+				offsetBuffer += xyzctCum[auxDim]; //update buffer
+				offsetBufferBlock += blockSizeAuxCum[auxDim];
+
+				bufferInAux = &(bufferIn[offsetBufferBlock]);
 			}
 		}
 		//-------------------end of parse bufferIn to bufferOut image buffer-----------------------------------
@@ -789,10 +792,11 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 	const std::uint64_t numBlocks = header.calculateNumBlocks();
 
 	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
-	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
+	numThreads = std::min((std::uint64_t) numThreads, numBlocks);	
+	
+	std::atomic<uint64_t> blockId;
+	atomic_store(&blockId, 0);
 
-	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
-		
 	// start the working threads
 	std::vector<std::thread> threads;
 	std::vector<int> errFlagVec(numThreads, 0);
