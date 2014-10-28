@@ -32,7 +32,6 @@ typedef std::chrono::high_resolution_clock Clock;
 using namespace std;
 
 //static variables for the class
-std::mutex				klb_imageIO::g_lockblockId;//so each worker reads a unique blockId
 std::condition_variable	klb_imageIO::g_queuecheck;//to notify writer that blocks are ready
 
 #ifdef PROFILE_COMPRESSION
@@ -47,7 +46,7 @@ inline T iDivUp(const T a, const T b){
 
 //========================================================
 //======================================================
-void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag)
+void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::atomic<uint64_t> *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag)
 {
 	*errFlag = 0;
 	int BWTblockSize = 9;//maximum compression
@@ -55,7 +54,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 	int gcount;//read bytes
 	unsigned int sizeCompressed;//size of block in bytes after compression
 
-	size_t bytesPerPixel = header.getBytesPerPixel();
+	const size_t bytesPerPixel = header.getBytesPerPixel();
 	uint32_t blockSizeBytes = bytesPerPixel;
 	uint32_t maxBlockSizeBytesCompressed = maximumBlockSizeCompressedInBytes();
 	uint64_t fLength = bytesPerPixel;
@@ -65,7 +64,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 	uint32_t blockSizeAux[KLB_DATA_DIMS];//for border cases where the blocksize might be different
 	uint64_t xyzctCum[KLB_DATA_DIMS];//to calculate offsets for each dimension
 
-	xyzctCum[0] = 1;
+	xyzctCum[0] = bytesPerPixel;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
 		blockSizeBytes *= header.blockSize[ii];
@@ -86,11 +85,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 	//main loop to keep processing blocks while they are available
 	while (1)
 	{
-		//get the blockId resource
-		std::unique_lock<std::mutex> locker(g_lockblockId);//exception safe
-		blockId_t = (*blockId);
-		(*blockId)++;
-		locker.unlock();
+		blockId_t = atomic_fetch_add(blockId, 1);
 
 		//check if we can access data or we cannot read longer
 		if (blockId_t >= numBlocks)
@@ -115,9 +110,11 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 		}
 
 		//make sure it is not a border block
+		int gcount = bytesPerPixel;
 		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		{
 			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
+			gcount *= blockSizeAux[ii]; 
 		}
 
 		//calculate starting offset in the buffer
@@ -125,32 +122,33 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		{
 			offsetBuffer += coordBlock[ii] * xyzctCum[ii];
-		}
-		offsetBuffer *= bytesPerPixel;
+		}		
 
-		//copy block into local buffer bufferIn
-		gcount = 0;
+		//copy block into local buffer bufferIn		
 		uint32_t bcount[KLB_DATA_DIMS];//to count elements in the block
 		memset(bcount, 0, sizeof(uint32_t)* KLB_DATA_DIMS);
+		const size_t  bufferCopySize = bytesPerPixel * blockSizeAux[0];
+		char* bufferInAux = bufferIn;
 		int auxDim = 1;
 		while (auxDim < KLB_DATA_DIMS)
 		{
-			//copy fastest moving coordinate all at once for efficiency
-			memcpy(&(bufferIn[gcount]), &(buffer[offsetBuffer]), bytesPerPixel * blockSizeAux[0]);
-			gcount += bytesPerPixel * blockSizeAux[0];
+			//copy fastest moving coordinate all at once for efficiency			
+			memcpy(bufferInAux, &(buffer[offsetBuffer]), bufferCopySize);
+			bufferInAux += bufferCopySize;
+			
 
-			//increment counter
+			//increment counter			
+			bcount[1]++;
+			offsetBuffer += xyzctCum[1];//update offset 
 			auxDim = 1;
-			bcount[auxDim]++;
-			offsetBuffer += xyzctCum[auxDim] * bytesPerPixel;//update offset 
 			while (bcount[auxDim] == blockSizeAux[auxDim])
 			{
-				offsetBuffer -= bcount[auxDim] * xyzctCum[auxDim] * bytesPerPixel;//update buffer
+				offsetBuffer -= bcount[auxDim] * xyzctCum[auxDim];//update buffer
 				bcount[auxDim++] = 0;
 				if (auxDim == KLB_DATA_DIMS)
 					break;
 				bcount[auxDim]++;
-				offsetBuffer += xyzctCum[auxDim] * bytesPerPixel; //update buffer
+				offsetBuffer += xyzctCum[auxDim]; //update buffer
 			}
 		}
 
@@ -388,11 +386,11 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 			memcpy(&(bufferOut[offsetBuffer]), bufferInAux, bufferCopySize);
 			bufferInAux += bufferInOffset;
 
-			//increment counter
+			//increment counter			
+			bcount[1]++;
+			offsetBuffer += xyzctCum[1];//update offset for output buffer		
+			offsetBufferBlock += blockSizeAuxCum[1];
 			auxDim = 1;
-			bcount[auxDim]++;
-			offsetBuffer += xyzctCum[auxDim];//update offset for output buffer		
-			offsetBufferBlock += blockSizeAuxCum[auxDim];
 
 			while (bcount[auxDim] == bUB[auxDim])
 			{
@@ -551,11 +549,10 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	
 			memcpy(&(bufferOut[offsetBuffer]), bufferInPtr, bufferCopySize);
 			bufferInPtr += bufferCopySize;
 
-			//increment counter
+			//increment counter			
+			bcount[1]++;
+			offsetBuffer += xyzctCum[1];//update offset for output buffer. xyzct already has bytesPerPixel		
 			auxDim = 1;
-			bcount[auxDim]++;
-			offsetBuffer += xyzctCum[auxDim];//update offset for output buffer. xyzct already has bytesPerPixel		
-
 			while (bcount[auxDim] == blockSizeAux[auxDim])
 			{
 				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim];//update buffer				
@@ -580,6 +577,172 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	
 
 	//release memory
 	delete[] bufferIn;
+
+}
+
+//======================================================
+void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64_t>	*blockId, int *errFlag)
+{
+	*errFlag = 0;
+
+	//open file to read elements
+	ifstream fid(filename.c_str(), ios::binary | ios::in);
+	if (fid.is_open() == false)
+	{
+		cout << "ERROR: blockUncompressor: thread opening file " << filename << endl;
+		*errFlag = 3;
+		return;
+	}
+
+	//define variables
+	std::uint64_t blockId_t;//to know which block we are processing
+	unsigned int sizeCompressed, gcount;
+	std::uint64_t offset;//size of block in bytes after compression
+
+
+	const size_t bytesPerPixel = header.getBytesPerPixel();
+	uint32_t blockSizeBytes = bytesPerPixel;
+	uint64_t dimsBlock[KLB_DATA_DIMS];//number of blocks on each dimension
+	uint64_t coordBlock[KLB_DATA_DIMS];//coordinates (in block space). blockId_t = coordBblock[0] + dimsBblock[0] * coordBlock[1] + dimsBblock[0] * dimsBblock[1] * coordBlock[2] + ...
+	uint64_t offsetBuffer;//starting offset for each buffer within ROI
+	uint32_t blockSizeAux[KLB_DATA_DIMS];//for border cases where the blocksize might be different
+	uint64_t xyzctCum[KLB_DATA_DIMS];//to calculate offsets for each dimension in THE ROI
+	uint64_t offsetHeaderBytes = header.getSizeInBytes();
+
+	xyzctCum[0] = bytesPerPixel;
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+	{
+		blockSizeBytes *= header.blockSize[ii];
+		dimsBlock[ii] = ceil((float)(header.xyzct[ii]) / (float)(header.blockSize[ii]));
+		if (ii > 0)
+			xyzctCum[ii] = xyzctCum[ii - 1] * header.xyzct[ii - 1];
+	}
+
+	std::uint64_t numBlocks = header.getNumBlocks();
+	char* bufferIn = new char[blockSizeBytes];//temporary storage for decompressed block
+	char* bufferFile = new char[blockSizeBytes];//temporary storage for compressed block from file
+
+	//main loop to keep processing blocks while they are available
+	while (1)
+	{
+		//get the blockId resource		
+		blockId_t = atomic_fetch_add(blockId, 1);
+
+		//check if we have more blocks
+		if (blockId_t >= numBlocks)
+			break;
+
+		//calculate coordinate (in block space)
+		std::uint64_t blockIdx_aux = blockId_t;
+		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		{
+			coordBlock[ii] = blockIdx_aux % dimsBlock[ii];
+			blockIdx_aux -= coordBlock[ii];
+			blockIdx_aux /= dimsBlock[ii];
+			coordBlock[ii] *= header.blockSize[ii];//parsing coordinates to image space (not block anymore)
+		}
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d reading block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+		//uncompress block into temp bufferIn
+		sizeCompressed = header.getBlockCompressedSizeBytes(blockId_t);
+		offset = header.getBlockOffset(blockId_t);
+
+		fid.seekg(offsetHeaderBytes + offset, ios::beg);
+		fid.read(bufferFile, sizeCompressed);//read compressed block
+
+
+		//apply decompression to block
+		switch (header.compressionType)
+		{
+		case 0://no compression
+			gcount = sizeCompressed;
+			memcpy(bufferIn, bufferFile, gcount);
+			break;
+		case 1://bzip2
+		{
+				   gcount = blockSizeBytes;
+				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferFile, sizeCompressed, 0, 0);
+				   if (ret != BZ_OK)
+				   {
+					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << std::endl;
+					   *errFlag = 2;
+					   gcount = 0;
+				   }
+				   break;
+		}
+		default:
+			std::cout << "ERROR: workerfunc: decompression type not implemented" << std::endl;
+			*errFlag = 5;
+			sizeCompressed = 0;
+		}
+
+
+
+		//-------------------parse bufferIn to bufferOut image buffer-----------------------------------		
+
+		//calculate block size in case we had border block				
+		blockSizeAux[0] = std::min(header.blockSize[0], (uint32_t)(header.xyzct[0] - coordBlock[0]));
+		for (int ii = 1; ii < KLB_DATA_DIMS; ii++)
+		{
+			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
+		}
+
+
+
+		//calculate starting offset in the buffer in image space
+		offsetBuffer = 0;
+		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		{
+			offsetBuffer += coordBlock[ii] * xyzctCum[ii];//xyzct already has bytesPerPixel
+		}
+
+		//copy block into local buffer bufferIn
+		int auxDim = 1;
+		uint32_t bcount[KLB_DATA_DIMS];
+		memset(bcount, 0, sizeof(uint32_t)* KLB_DATA_DIMS);
+		const size_t bufferCopySize = bytesPerPixel * blockSizeAux[0];
+		char* bufferInPtr = bufferIn;
+		while (auxDim < KLB_DATA_DIMS)
+		{
+
+			//copy fastest moving coordinate all at once for efficiency
+			memcpy(&(bufferOut[offsetBuffer]), bufferInPtr, bufferCopySize);
+			bufferInPtr += bufferCopySize;
+
+			//increment counter			
+			bcount[1]++;
+			offsetBuffer += xyzctCum[1];//update offset for output buffer. xyzct already has bytesPerPixel		
+			auxDim = 1;
+			while (bcount[auxDim] == blockSizeAux[auxDim])
+			{
+				offsetBuffer -= blockSizeAux[auxDim] * xyzctCum[auxDim];//update buffer				
+				bcount[auxDim] = 0;
+				auxDim++;
+				if (auxDim == KLB_DATA_DIMS)
+					break;
+				bcount[auxDim]++;
+				offsetBuffer += xyzctCum[auxDim]; //update buffer.xyzct already has bytesPerPixel
+			}
+		}
+		//-------------------end of parse bufferIn to bufferOut image buffer-----------------------------------
+
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d finished decompressing block %d into %d bytes\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)gcount);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+	}
+
+
+	//release memory
+	fid.close();
+	delete[] bufferIn;
+	delete[] bufferFile;
 
 }
 
@@ -729,7 +892,9 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
 	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
 
-	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
+	std::atomic<uint64_t> blockId;//counter shared all workers so each worker thread knows which block to readblockId = 0;
+	atomic_store(&blockId, 0);
+
 	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
 	int* g_blockThreadId = new int[numBlocks];//indicates which thread wrote the nlock so the writer can find the appropoate circular queue
 	for (std::int64_t ii = 0; ii < numBlocks; ii++)
@@ -847,6 +1012,8 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 	std::atomic<uint64_t>	g_blockId;
 	atomic_store(&g_blockId, 0);
 
+
+#ifdef USE_MEM_BUFFER		
 	//read compressed file from disk into memory
 	//open file to read elements
 	ifstream fid(filename.c_str(), ios::binary | ios::in);
@@ -855,22 +1022,24 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 		cout << "ERROR: readImageFull: reading file " << filename << endl;
 		return 3;
 	}
-
 	//auto t1 = Clock::now();
-
 	char* imgIn = new char[header.getCompressedFileSizeInBytes()];
 	fid.read(imgIn, header.getCompressedFileSizeInBytes());
 	fid.close();
-
 	//auto t2 = Clock::now();
 	//std::cout << "=======DEBUGGING:took " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms to read file from disk memory by a single thread" << std::endl;
+#endif
 
 	// start the working threads
 	std::vector<std::thread> threads;
 	std::vector<int> errFlagVec(numThreads, 0);
 	for (int i = 0; i < numThreads; ++i)
 	{
-		threads.push_back(std::thread(&klb_imageIO::blockUncompressorInMem, this, imgOut, &g_blockId, imgIn, &(errFlagVec[i])));
+#ifdef USE_MEM_BUFFER		
+			threads.push_back(std::thread(&klb_imageIO::blockUncompressorInMem, this, imgOut, &g_blockId, imgIn, &(errFlagVec[i])));
+#else
+		threads.push_back(std::thread(&klb_imageIO::blockUncompressorImageFull, this, imgOut, &g_blockId, &(errFlagVec[i])));		
+#endif
 	}
 
 	//wait for the workers to finish
@@ -878,7 +1047,9 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 		t.join();
 
 	//release memory
+#ifdef USE_MEM_BUFFER		
 	delete[] imgIn;
+#endif
 	for (int ii = 0; ii < numThreads; ii++)
 	{
 		if (errFlagVec[ii] != 0)

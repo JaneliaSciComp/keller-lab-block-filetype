@@ -104,9 +104,9 @@ int main(int argc, const char** argv)
 			return err;
 		uint16_t* imgA = new uint16_t[imgFull.header.getImageSizePixels()];
 
-		ROIfull.defineFullImage(imgFull.header.xyzct);
-		err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
-		//err = imgFull.readImageFull((char*)imgA, numThreads);
+		//ROIfull.defineFullImage(imgFull.header.xyzct);
+		//err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
+		err = imgFull.readImageFull((char*)imgA, numThreads);
 		if (err > 0)
 			return err;
 
