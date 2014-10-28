@@ -18,12 +18,12 @@
 #include <mutex>
 #include <condition_variable>
 #include <vector>
-
+#include <atomic>
 
 //#define PROFILE_COMPRESSION //uncomment to check how much is spent in compression
-#ifdef PROFILE_COMPRESSION
-#include <atomic>
-#endif
+
+
+
 
 #include "klb_imageHeader.h"
 #include "klb_circularDequeue.h"
@@ -78,12 +78,14 @@ private:
 #ifdef PROFILE_COMPRESSION
 	static std::atomic<long long>	g_countCompression;
 #endif
+	
+	
 	//functions to call for each thread
 	void blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag);
 	void blockCompressor(const char* buffer, int* g_blockSize, uint64_t *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
 
 	void blockUncompressor(char* bufferOut, uint64_t *blockId, const klb_ROI* ROI, int* errFlag);
-	void blockUncompressorInMem(char* bufferOut, uint64_t *blockId, char* bufferImgFull, int* errFlag);
+	void blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	*blockId, char* bufferImgFull, int* errFlag);
 
 	std::uint32_t maximumBlockSizeCompressedInBytes();//some formats have overhead so for small blocks of random noise it could be larger than block size
 };

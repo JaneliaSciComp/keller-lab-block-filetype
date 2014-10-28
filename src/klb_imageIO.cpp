@@ -28,7 +28,7 @@
 
 
 //#define DEBUG_PRINT_THREADS
-
+typedef std::chrono::high_resolution_clock Clock;
 using namespace std;
 
 //static variables for the class
@@ -161,7 +161,6 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, uint64_t
 
 
 #ifdef PROFILE_COMPRESSION
-		typedef std::chrono::high_resolution_clock Clock;
 		auto t1 = Clock::now();
 #endif
 		//apply compression to block
@@ -426,7 +425,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, uint64_t *blockId, const kl
 }
 
 //======================================================
-void klb_imageIO::blockUncompressorInMem(char* bufferOut, uint64_t *blockId, char* bufferImgFull, int *errFlag)
+void klb_imageIO::blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	*blockId, char* bufferImgFull, int *errFlag)
 {
 	*errFlag = 0;
 	
@@ -462,11 +461,8 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, uint64_t *blockId, cha
 	//main loop to keep processing blocks while they are available
 	while (1)
 	{
-		//get the blockId resource
-		std::unique_lock<std::mutex> locker(g_lockblockId);//exception safe
-		blockId_t = (*blockId);
-		(*blockId)++;
-		locker.unlock();
+		//get the blockId resource		
+		blockId_t = atomic_fetch_add(blockId, 1);
 
 		//check if we have more blocks
 		if (blockId_t >= numBlocks)
@@ -832,7 +828,8 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
 	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
 
-	uint64_t blockId = 0;//counter shared all workers so each worker thread knows which block to readblockId = 0;
+	std::atomic<uint64_t>	g_blockId;
+	atomic_store(&g_blockId, 0);
 
 	//read compressed file from disk into memory
 	//open file to read elements
@@ -843,16 +840,21 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 		return 3;
 	}
 
+	//auto t1 = Clock::now();
+
 	char* imgIn = new char[header.getCompressedFileSizeInBytes()];
 	fid.read(imgIn, header.getCompressedFileSizeInBytes());
 	fid.close();
+
+	//auto t2 = Clock::now();
+	//std::cout << "=======DEBUGGING:took " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms to read file from disk memory by a single thread" << std::endl;
 
 	// start the working threads
 	std::vector<std::thread> threads;
 	std::vector<int> errFlagVec(numThreads, 0);
 	for (int i = 0; i < numThreads; ++i)
 	{
-		threads.push_back(std::thread(&klb_imageIO::blockUncompressorInMem, this, imgOut, &blockId, imgIn, &(errFlagVec[i])));
+		threads.push_back(std::thread(&klb_imageIO::blockUncompressorInMem, this, imgOut, &g_blockId, imgIn, &(errFlagVec[i])));
 	}
 
 	//wait for the workers to finish
