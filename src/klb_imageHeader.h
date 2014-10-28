@@ -86,11 +86,12 @@ public:
 	size_t getBlockCompressedSizeBytes(size_t blockId);
 	std::uint64_t getBlockOffset(size_t blockIdx);//offset in compressed file without counting header (so you have to add getSizeInBytes() for total offset
 	std::uint64_t getCompressedFileSizeInBytes();
+	void setDefaultBlockSize();//sets default block size based on our analysis for our own images
 
 protected:
 
 private:	
-
+	const static std::uint32_t optimalBlockSizeInBytes[KLB_DATA_DIMS];
 };
 
 

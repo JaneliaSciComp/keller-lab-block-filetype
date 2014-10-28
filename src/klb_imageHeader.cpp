@@ -20,7 +20,7 @@
 
 using namespace std;
 
-
+const std::uint32_t klb_image_header::optimalBlockSizeInBytes[KLB_DATA_DIMS] = { 192, 192, 16, 1, 1 };
 
 klb_image_header& klb_image_header::operator=(const klb_image_header& p)
 {
@@ -207,4 +207,18 @@ std::uint64_t klb_image_header::getBlockOffset(size_t blockIdx)
 std::uint64_t klb_image_header::getCompressedFileSizeInBytes()
 {
 	return getSizeInBytes() + blockOffset.back();
+}
+
+void klb_image_header::setDefaultBlockSize()
+{
+	std::uint32_t bytesPerPixel = getBytesPerPixel();	
+
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+	{
+		blockSize[ii] = optimalBlockSizeInBytes[ii] / bytesPerPixel;
+		if (blockSize[ii] == 0)
+		{
+			blockSize[ii] = 1;
+		}
+	}
 }

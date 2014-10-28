@@ -61,9 +61,7 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 		imgIO.header.xyzct[ii] = 1;
 		imgIO.header.pixelSize[ii] = -1.0f;;//so users know it was not especified
 	}	
-	imgIO.header.blockSize[0] = 64; imgIO.header.blockSize[1] = 64; imgIO.header.blockSize[2] = 8; imgIO.header.blockSize[3] = 1; imgIO.header.blockSize[4] = 1;		
-	imgIO.header.compressionType = 1;//bzip2 by default
-
+	
     // check: only one input and one output argument
     switch( nrhs )
     {
@@ -186,7 +184,10 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 		default:
 			mexErrMsgTxt("Data type not supported");
 	}
-  	        
+  	 
+    imgIO.header.setDefaultBlockSize();
+    imgIO.header.compressionType = 1;//bzip2 by default
+
     
 	error = imgIO.writeImage((char*)(mxGetData(prhs[0])), numThreads);//all the threads available
 	if (error > 0)
