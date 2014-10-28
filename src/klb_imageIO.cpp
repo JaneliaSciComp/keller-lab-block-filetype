@@ -406,7 +406,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 				offsetBuffer += xyzctCum[auxDim]; //update buffer
 				offsetBufferBlock += blockSizeAuxCum[auxDim];
 
-				bufferInAux = &(bufferIn[offsetBufferBlock]);
+				bufferInAux = &(bufferIn[offsetBufferBlock]);//with ROI it is not a constant increment
 			}
 		}
 		//-------------------end of parse bufferIn to bufferOut image buffer-----------------------------------
@@ -592,10 +592,14 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	std::uint64_t numBlocks = header.getNumBlocks();
 	header.blockOffset.resize(numBlocks);//just in case it has not been setup
 
+//#define USE_MEM_BUFFER //uncomment this line to use a large memory buffer before writing to file. It is slower since C++ write already buffers ofstream before flushing
 
+#ifdef USE_MEM_BUFFER
 	//buffer to avoid writing to disk all the time
 	int bufferMaxSize = std::min( header.getImageSizeBytes() / 10, (uint64_t) (500 * 1048576));//maximum is 500MB or 10th of the original image size
 	char* bufferMem = new char[bufferMaxSize];
+	int bufferOffset = 0;
+#endif	
 
 	//open output file
 	std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);
@@ -612,7 +616,8 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	// loop until end is signaled	
 	std::mutex              g_lockqueue;//mutex for the condition variable (dummy one)
 	std::unique_lock<std::mutex> locker(g_lockqueue);//acquires the lock but this is the only thread using it. We cannot have condition_variables without a mutex
-	int bufferOffset = 0;
+
+	std::int64_t blockSize;
 	while (nextBlockId < numBlocks)
 	{
 
@@ -628,7 +633,10 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 #endif
 				
 		//write block
-		const std::int64_t blockSize = g_blockSize[nextBlockId];
+		blockSize = g_blockSize[nextBlockId];
+
+#ifdef USE_MEM_BUFFER
+		//use memory large memory buffer
 		if (bufferOffset + blockSize > bufferMaxSize)//we need to flush the buffer
 		{
 			fout.write(bufferMem, bufferOffset);
@@ -638,7 +646,9 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		//add block to the memory buufer
 		memcpy(&(bufferMem[bufferOffset]), cq[g_blockThreadId[nextBlockId]]->getReadBlock(), blockSize);
 		bufferOffset += blockSize;
-		
+#else
+		fout.write(cq[g_blockThreadId[nextBlockId]]->getReadBlock(), blockSize);
+#endif
 		//now we can release data
 		cq[g_blockThreadId[nextBlockId]]->popReadBlock();
 		offset += blockSize;
@@ -649,17 +659,19 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		//update variables
 		nextBlockId++;
 	}
-
+#ifdef USE_MEM_BUFFER
 	//flush the rest of the buffer
 	fout.write(bufferMem, bufferOffset);
-
+#endif
 	//update header.blockOffset
 	fout.seekp(header.getSizeInBytesFixPortion(), ios::beg);
 	fout.write((char*)(&(header.blockOffset[0])) ,header.blockOffset.size() * sizeof(std::uint64_t) );
 
 	//close file
 	fout.close();
-	delete[]bufferMem;
+#ifdef USE_MEM_BUFFER
+	delete[] bufferMem;
+#endif
 }
 
 
