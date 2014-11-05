@@ -17,6 +17,12 @@ file(GLOB KLB_HDRS ${PROJECT_SOURCE_DIR}/*.h)
 ADD_LIBRARY(klblib ${KLB_SRCS} ${KLB_HDRS})
 target_link_libraries (klblib bz2lib )
 
+#main shared library (DLL)
+ADD_LIBRARY(klblibs SHARED ${KLB_SRCS} ${KLB_HDRS})
+target_link_libraries (klblibs bz2lib )
+set_property(TARGET klblibs PROPERTY COMPILE_DEFINITIONS COMPILE_SHARED_LIBRARY)
+
+
 #executable to test klblib library for I/O purposes
 ADD_EXECUTABLE(test_klbIO mainTest_klbIO.cxx)
 target_link_libraries (test_klbIO klblib)

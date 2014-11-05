@@ -29,8 +29,11 @@
 #include "klb_circularDequeue.h"
 #include "klb_ROI.h"
 
-
+#if defined(COMPILE_SHARED_LIBRARY) && defined(_MSC_VER)
+class __declspec(dllexport) klb_imageIO
+#else
 class klb_imageIO
+#endif
 {
 public:
 
