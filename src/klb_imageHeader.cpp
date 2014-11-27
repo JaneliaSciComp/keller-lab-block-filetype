@@ -20,8 +20,6 @@
 
 using namespace std;
 
-const std::uint32_t klb_image_header::optimalBlockSizeInBytes[KLB_DATA_DIMS] = { 192, 192, 16, 1, 1 };
-
 klb_image_header& klb_image_header::operator=(const klb_image_header& p)
 {
 	if (this != &p)
@@ -32,6 +30,7 @@ klb_image_header& klb_image_header::operator=(const klb_image_header& p)
 		compressionType = p.compressionType;
 		memcpy(blockSize, p.blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
 		blockOffset = p.blockOffset;
+		memcpy(optimalBlockSizeInBytes, p.optimalBlockSizeInBytes, sizeof(uint32_t)* KLB_DATA_DIMS);
 	}
 	return *this;
 }
@@ -46,11 +45,17 @@ klb_image_header::klb_image_header(const klb_image_header& p)
 	compressionType = p.compressionType;
 	memcpy(blockSize, p.blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
 	blockOffset = p.blockOffset;
+
+	memcpy(optimalBlockSizeInBytes, p.optimalBlockSizeInBytes, sizeof(uint32_t)* KLB_DATA_DIMS);
+
 }
 
 klb_image_header::klb_image_header()
 {
 	memset(xyzct, 0, sizeof(uint32_t)* KLB_DATA_DIMS);
+
+	const uint32_t optimalBlockSizeInBytes_[KLB_DATA_DIMS] = { 192, 192, 16, 1, 1 };
+	memcpy(optimalBlockSizeInBytes, optimalBlockSizeInBytes_, sizeof(uint32_t)* KLB_DATA_DIMS);
 }
 
 klb_image_header::~klb_image_header()

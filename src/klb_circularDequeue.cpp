@@ -66,6 +66,7 @@ klb_circular_dequeue::~klb_circular_dequeue()
 //=================================================================
 char *klb_circular_dequeue::getReadBlock()
 {
+	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock
 
 	if (std::atomic_load(&numTaken) == 0)//nothing to read
 		return NULL;
@@ -75,7 +76,8 @@ char *klb_circular_dequeue::getReadBlock()
 
 void klb_circular_dequeue::popReadBlock()
 {
-	
+	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock
+
 	if (std::atomic_load(&numTaken) > 0)//something to pop
 	{
 		std::atomic_fetch_sub(&numTaken, 1);
@@ -84,7 +86,8 @@ void klb_circular_dequeue::popReadBlock()
 		{
 			readIdx = 0;			
 		}
-		g_writeWait.notify_one();//if a thread was waiting to get a writing block wake it up
+		locker.unlock();
+		g_writeWait.notify_all();//if a thread was waiting to get a writing block wake it up
 	}	
 }
 
@@ -93,6 +96,7 @@ char* klb_circular_dequeue::getWriteBlock()
 {
 		
 	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock 
+	
 	g_writeWait.wait(locker, [&](){return (std::atomic_load(&numTaken) < numBlocks); });//releases the lock until notify. If condition is not satisfied, it waits again
 		
 	char* ptr = &(dataBuffer[writeIdx * blockSizeBytes]);	
@@ -104,10 +108,12 @@ char* klb_circular_dequeue::getWriteBlock()
 //=================================================================
 void klb_circular_dequeue::pushWriteBlock()
 {	
+	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock
+
 	writeIdx++;
 	if (writeIdx == numBlocks)
 	{
 		writeIdx = 0;
 	}
-	std::atomic_fetch_add(&numTaken, 1);
+	std::atomic_fetch_add(&numTaken, (int)1);
 }

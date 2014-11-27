@@ -18,6 +18,7 @@
 #include <cstdint>
 #include <chrono>
 #include <algorithm>
+#include <thread>
 
 #include "klb_imageIO.h"
 
@@ -27,18 +28,22 @@ typedef std::chrono::high_resolution_clock Clock;
 
 int main(int argc, const char** argv)
 {
-	int numThreads = -1;//<= 0 indicates use as many as possible
+	int numProg = -1;
+	if (argc == 2)
+		numProg = atoi(argv[1]);
+
+	int numThreads = std::thread::hardware_concurrency() - 2;//<= 0 indicates use as many as possible
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
 	int compressionType = 1;//1->bzip2; 0->none
 
 
-	std::string basename("E:/compressionFormatData/ZebrafishTM200");
+	std::string basename("D:/compressionFormatData/ZebrafishTM200");
 	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };	
 	
 	cout << "Testing KLB speed with file " << basename << ".raw and blockSize =";
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		cout << blockSize[ii] << "x";
-	cout << endl;
+	cout <<" with "<<numThreads<< "threads"<< endl;
 	
 	//================================================
 	//common definitions
@@ -55,6 +60,12 @@ int main(int argc, const char** argv)
 	//=========================================================================
 
 	
+	if (numProg >= 0)
+	{
+		char buffer[256];
+		sprintf(buffer, "D:/temp/testKLB_cpp%.3d.klb", numProg);
+		filenameOut = string(buffer);
+	}
 	
 	cout << "Compressing file to " << filenameOut << endl;
 	//initialize I/O object
@@ -74,7 +85,6 @@ int main(int argc, const char** argv)
 	ifstream fim(string(basename + ".raw").c_str(), ios::binary | ios::in);
 	fim.read((char*)img, sizeof(uint16_t)* imgIO.header.getImageSizePixels());
 
-
 	t1 = Clock::now();
 	err = imgIO.writeImage((char*)img, numThreads);//all the threads available
 	if (err > 0)
@@ -86,7 +96,7 @@ int main(int argc, const char** argv)
 
 	delete[] img;
 	
-
+	return 0;
 
 	//===========================================================================================
 	//===========================================================================================

@@ -78,7 +78,7 @@ public:
 	size_t getNumBlocks(){ return blockOffset.size(); };
 	size_t calculateNumBlocks();
 	size_t getSizeInBytes() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t) ) + 2 * sizeof(std::uint8_t) + blockOffset.size() * sizeof(std::uint64_t); };
-	static size_t getSizeInBytesFixPortion() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t)) + 2 * sizeof(std::uint8_t); };
+	size_t getSizeInBytesFixPortion() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t)) + 2 * sizeof(std::uint8_t); };
 	size_t getBytesPerPixel();
 	std::uint32_t getBlockSizeBytes();
 	std::uint64_t getImageSizeBytes();
@@ -91,7 +91,7 @@ public:
 protected:
 
 private:	
-	const static std::uint32_t optimalBlockSizeInBytes[KLB_DATA_DIMS];
+	std::uint32_t optimalBlockSizeInBytes[KLB_DATA_DIMS];//not const to make it easy to call from JAVA wrapper. Not static to make it thread-safe
 };
 
 

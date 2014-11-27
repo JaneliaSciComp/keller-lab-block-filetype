@@ -31,8 +31,6 @@
 typedef std::chrono::high_resolution_clock Clock;
 using namespace std;
 
-//static variables for the class
-std::condition_variable	klb_imageIO::g_queuecheck;//to notify writer that blocks are ready
 
 #ifdef PROFILE_COMPRESSION
 std::atomic <long long> klb_imageIO::g_countCompression;//in case we want to measure only compression timing
@@ -85,7 +83,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 	//main loop to keep processing blocks while they are available
 	while (1)
 	{
-		blockId_t = atomic_fetch_add(blockId, 1);
+		blockId_t = atomic_fetch_add(blockId, (uint64_t) 1);
 
 		//check if we can access data or we cannot read longer
 		if (blockId_t >= numBlocks)
@@ -154,9 +152,21 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 
 		//-------------------end of read block-----------------------------------
 
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 1 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
 		//decide address where we write the compressed block output						
 		char* bufferOutPtr = cq->getWriteBlock(); //this operation is thread safe	
 
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 2 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
 
 #ifdef PROFILE_COMPRESSION
 		auto t1 = Clock::now();
@@ -187,6 +197,11 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 			sizeCompressed = 0;
 		}
 
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 3 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
 #ifdef PROFILE_COMPRESSION
 		auto t2 = Clock::now();
 		long long auxChrono = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();//in ms
@@ -195,11 +210,16 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 
 		cq->pushWriteBlock();//notify content is ready in the queue
 
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 4 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
 		//signal blockWriter that this block can be writen
 		//std::unique_lock<std::mutex> locker(g_lockqueue);//adquires the lock
 		g_blockSize[blockId_t] = sizeCompressed;//I don't really need the lock to modify this. I only need to singal the condition variable
 		g_blockThreadId[blockId_t] = threadId;
-		g_queuecheck.notify_one();
+		g_queuecheck.notify_all();
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Thread %d finished compressing block %d into %d bytes\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int) sizeCompressed);
@@ -261,7 +281,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 	while (1)
 	{
 		//get the blockId resource
-		blockId_t = atomic_fetch_add(blockId, 1);
+		blockId_t = atomic_fetch_add(blockId, (uint64_t)1);
 
 		//check if we have more blocks
 		if (blockId_t >= numBlocks)
@@ -463,7 +483,7 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	
 	while (1)
 	{
 		//get the blockId resource		
-		blockId_t = atomic_fetch_add(blockId, 1);
+		blockId_t = atomic_fetch_add(blockId, (uint64_t) 1);
 
 		//check if we have more blocks
 		if (blockId_t >= numBlocks)
@@ -626,7 +646,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 	while (1)
 	{
 		//get the blockId resource		
-		blockId_t = atomic_fetch_add(blockId, 1);
+		blockId_t = atomic_fetch_add(blockId, (uint64_t) 1);
 
 		//check if we have more blocks
 		if (blockId_t >= numBlocks)
@@ -864,8 +884,8 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 
 	//redirect standard out
 #ifdef DEBUG_PRINT_THREADS
-	freopen("E:/temp/cout_klb_imageIO.txt", "w", stdout);
-	cout << "Redirecting stdout for klb_imageIO::writeImage" << endl;
+	//cout << "Redirecting stdout for klb_imageIO::writeImage" << endl;
+	//freopen("E:/temp/cout_klb_imageIO.txt", "w", stdout);	
 #endif
 
 	if (numThreads <= 0)//use maximum available
@@ -893,7 +913,7 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
 
 	std::atomic<uint64_t> blockId;//counter shared all workers so each worker thread knows which block to readblockId = 0;
-	atomic_store(&blockId, 0);
+	atomic_store(&blockId, (uint64_t)0);
 
 	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
 	int* g_blockThreadId = new int[numBlocks];//indicates which thread wrote the nlock so the writer can find the appropoate circular queue
@@ -972,7 +992,7 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 	numThreads = std::min((std::uint64_t) numThreads, numBlocks);	
 	
 	std::atomic<uint64_t> blockId;
-	atomic_store(&blockId, 0);
+	atomic_store(&blockId, (uint64_t)0);
 
 	// start the working threads
 	std::vector<std::thread> threads;
@@ -1010,7 +1030,7 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
 
 	std::atomic<uint64_t>	g_blockId;
-	atomic_store(&g_blockId, 0);
+	atomic_store(&g_blockId, (uint64_t)0);
 
 
 #ifdef USE_MEM_BUFFER		
