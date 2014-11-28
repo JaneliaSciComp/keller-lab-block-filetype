@@ -34,10 +34,10 @@ klb_circular_dequeue::klb_circular_dequeue(int blockSizeBytes_, int numBlocks_) 
 klb_circular_dequeue& klb_circular_dequeue::operator=(const klb_circular_dequeue& p)
 {
 	if (this != &p)
-	{
+	{		
 		readIdx = p.readIdx;
 		writeIdx = p.writeIdx;
-		std::atomic_store(&numTaken, std::atomic_load(&(p.numTaken)));
+		numTaken = p.numTaken;
 		memcpy(dataBuffer, p.dataBuffer, blockSizeBytes * numBlocks);
 	}
 	return *this;
@@ -49,7 +49,7 @@ klb_circular_dequeue::klb_circular_dequeue(const klb_circular_dequeue& p) : bloc
 
 	readIdx = p.readIdx;
 	writeIdx = p.writeIdx;
-	std::atomic_store(&numTaken, std::atomic_load(&(p.numTaken)));
+	numTaken = p.numTaken;
 
 	dataBuffer = new char[blockSizeBytes * numBlocks];
 	memcpy(dataBuffer, p.dataBuffer, blockSizeBytes * numBlocks);	
@@ -68,7 +68,7 @@ char *klb_circular_dequeue::getReadBlock()
 {
 	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock
 
-	if (std::atomic_load(&numTaken) == 0)//nothing to read
+	if (numTaken == 0)//nothing to read
 		return NULL;
 	else
 		return (&(dataBuffer[readIdx * blockSizeBytes]));
@@ -78,9 +78,9 @@ void klb_circular_dequeue::popReadBlock()
 {
 	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock
 
-	if (std::atomic_load(&numTaken) > 0)//something to pop
+	if (numTaken > 0)//something to pop
 	{
-		std::atomic_fetch_sub(&numTaken, 1);
+		numTaken--;
 		readIdx++;		
 		if (readIdx == numBlocks)//restart the queue
 		{
@@ -97,7 +97,7 @@ char* klb_circular_dequeue::getWriteBlock()
 		
 	std::unique_lock<std::mutex> locker(g_lockWrite);//acquires the lock 
 	
-	g_writeWait.wait(locker, [&](){return (std::atomic_load(&numTaken) < numBlocks); });//releases the lock until notify. If condition is not satisfied, it waits again
+	g_writeWait.wait(locker, [&](){return (numTaken < numBlocks); });//releases the lock until notify. If condition is not satisfied, it waits again
 		
 	char* ptr = &(dataBuffer[writeIdx * blockSizeBytes]);	
 	locker.unlock();	
@@ -115,5 +115,5 @@ void klb_circular_dequeue::pushWriteBlock()
 	{
 		writeIdx = 0;
 	}
-	std::atomic_fetch_add(&numTaken, (int)1);
+	numTaken++; 
 }

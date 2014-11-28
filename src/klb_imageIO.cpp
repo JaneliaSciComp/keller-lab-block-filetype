@@ -108,7 +108,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 		}
 
 		//make sure it is not a border block
-		int gcount = bytesPerPixel;
+		gcount = bytesPerPixel;
 		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		{
 			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
@@ -216,9 +216,11 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 #endif
 
 		//signal blockWriter that this block can be writen
-		//std::unique_lock<std::mutex> locker(g_lockqueue);//adquires the lock
+		std::unique_lock<std::mutex> locker(g_lockqueue);//adquires the lock		
 		g_blockSize[blockId_t] = sizeCompressed;//I don't really need the lock to modify this. I only need to singal the condition variable
 		g_blockThreadId[blockId_t] = threadId;
+		locker.unlock();
+
 		g_queuecheck.notify_all();
 
 #ifdef DEBUG_PRINT_THREADS
@@ -796,10 +798,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	//write header
 	header.writeHeader(fout);
 
-	// loop until end is signaled	
-	std::mutex              g_lockqueue;//mutex for the condition variable (dummy one)
-	std::unique_lock<std::mutex> locker(g_lockqueue);//acquires the lock but this is the only thread using it. We cannot have condition_variables without a mutex
-
+	// loop until end is signaled			
 	std::int64_t blockSize;
 	while (nextBlockId < numBlocks)
 	{
@@ -808,7 +807,10 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		printf("Writer trying to append block %d out of %d\n", (int)nextBlockId, (int)numBlocks);
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
+		std::unique_lock<std::mutex> locker(g_lockqueue);//acquires the lock but this is the only thread using it. We cannot have condition_variables without a mutex
 		g_queuecheck.wait(locker, [&](){return (g_blockSize[nextBlockId] >= 0 && g_blockThreadId[nextBlockId] >= 0); });//releases the lock until notify. If condition is not satisfied, it waits again
+
+		locker.unlock();
 
 #ifdef DEBUG_PRINT_THREADS
 		printf("Writer appending block %d out of %d with %d bytes\n", (int)nextBlockId, (int) numBlocks,g_blockSize[nextBlockId]);

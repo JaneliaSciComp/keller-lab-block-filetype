@@ -32,7 +32,7 @@ int main(int argc, const char** argv)
 	if (argc == 2)
 		numProg = atoi(argv[1]);
 
-	int numThreads = std::thread::hardware_concurrency() - 2;//<= 0 indicates use as many as possible
+	int numThreads = std::thread::hardware_concurrency();//<= 0 indicates use as many as possible
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
 	int compressionType = 1;//1->bzip2; 0->none
 

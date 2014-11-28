@@ -27,7 +27,7 @@ public:
 
 	//variables
 	std::condition_variable	g_writeWait;//so writer waits until there is a spot until the queue isfull
-	std::mutex              g_lockWrite;//mutex for the condition variable (dummy one)
+	std::mutex              g_lockWrite;//mutex to lock read/write resources
 
 	//constructor / destructor
 	klb_circular_dequeue(int blockSizeBytes_, int numBlocks_);
@@ -48,7 +48,7 @@ private:
 	const int blockSizeBytes;//number of bytes per block
 	const int numBlocks;//number of blocks that can be stored
 	int readIdx, writeIdx;//index within the dequeu to read / write next element
-	std::atomic<int> numTaken;//count number of elements taken so we avoid spill over
+	int numTaken;//count number of elements taken so we avoid spill over
 };
 
 

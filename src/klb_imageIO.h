@@ -75,7 +75,8 @@ public:
 
 protected:
 
-private:		
+private:
+	std::mutex              g_lockqueue;//mutex for the condition variable
 	std::condition_variable	g_queuecheck;//to notify writer that blocks are ready
 #ifdef PROFILE_COMPRESSION
 	static std::atomic<long long>	g_countCompression;
