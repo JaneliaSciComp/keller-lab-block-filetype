@@ -29,7 +29,7 @@ typedef std::chrono::high_resolution_clock Clock;
 int main(int argc, const char** argv)
 {
 	int numThreads = 10;//<= 0 indicates use as many as possible
-	int compressionType = 1;//1->bzip2; 0->none
+	int compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none
 	std::string filenameOut("E:/compressionFormatData/debugGradient.klb");
 
 

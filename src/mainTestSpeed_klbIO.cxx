@@ -34,7 +34,7 @@ int main(int argc, const char** argv)
 
 	int numThreads = std::thread::hardware_concurrency();//<= 0 indicates use as many as possible
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
-	int compressionType = 1;//1->bzip2; 0->none
+	int compressionType = 1;//1->bzip2; 0->none (look at enum KLB_COMPRESSION_TYPE)
 
 
 	std::string basename("D:/compressionFormatData/ZebrafishTM200");

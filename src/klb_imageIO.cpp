@@ -174,11 +174,11 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 		//apply compression to block
 		switch (header.compressionType)
 		{
-		case 0://no compression
+		case KLB_COMPRESSION_TYPE::NONE://no compression
 			sizeCompressed = gcount;
 			memcpy(bufferOutPtr, bufferIn, sizeCompressed);//fid.gcount():Returns the number of characters extracted by the last unformatted input operation performed on the object
 			break;
-		case 1://bzip2
+		case KLB_COMPRESSION_TYPE::BZIP2://bzip2
 		{
 				   sizeCompressed = maxBlockSizeBytesCompressed;
 				   // compress the memory buffer (blocksize=9*100k, verbose=0, worklevel=30)				  
@@ -331,11 +331,11 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 		//apply decompression to block
 		switch (header.compressionType)
 		{
-		case 0://no compression
+		case KLB_COMPRESSION_TYPE::NONE://no compression
 			gcount = sizeCompressed;
 			memcpy(bufferIn, bufferFile, gcount);
 			break;
-		case 1://bzip2
+		case KLB_COMPRESSION_TYPE::BZIP2://bzip2
 		{
 				   gcount = blockSizeBytes;
 				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferFile, sizeCompressed, 0, 0);				   
@@ -516,11 +516,11 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	
 		//apply decompression to block
 		switch (header.compressionType)
 		{
-		case 0://no compression
+		case KLB_COMPRESSION_TYPE::NONE://no compression
 			gcount = sizeCompressed;
 			memcpy(bufferIn, bufferPtr, gcount);
 			break;
-		case 1://bzip2
+		case KLB_COMPRESSION_TYPE::BZIP2://bzip2
 		{
 				   gcount = blockSizeBytes;
 				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferPtr, sizeCompressed, 0, 0);
@@ -680,11 +680,11 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 		//apply decompression to block
 		switch (header.compressionType)
 		{
-		case 0://no compression
+		case KLB_COMPRESSION_TYPE::NONE://no compression
 			gcount = sizeCompressed;
 			memcpy(bufferIn, bufferFile, gcount);
 			break;
-		case 1://bzip2
+		case KLB_COMPRESSION_TYPE::BZIP2://bzip2
 		{
 				   gcount = blockSizeBytes;
 				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferFile, sizeCompressed, 0, 0);
@@ -985,6 +985,25 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 
 int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 {
+	if (filename.empty())
+	{
+		std::cerr << "ERROR: Filename has not been defined. We cannot read image" << std::endl;
+		return 3;
+	}
+
+	if (header.Nb == 0)//try to read header
+	{
+		int err = readHeader();
+		if (err > 0)
+			return err;
+		if (header.Nb == 0)//something is wring
+		{
+			std::cerr << "ERROR: Image to read has not blocks" << std::endl;
+			return 2;
+		}
+	}
+	
+
 	if (numThreads <= 0)//use maximum available
 		numThreads = std::thread::hardware_concurrency();
 	
@@ -1022,6 +1041,23 @@ int klb_imageIO::readImage(char* img, const klb_ROI* ROI, int numThreads)
 
 int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 {	
+	if (filename.empty())
+	{
+		std::cerr << "ERROR: Filename has not been defined. We cannot read image" << std::endl;
+		return 3;
+	}
+
+	if (header.Nb == 0)//try to read header
+	{
+		int err = readHeader();
+		if (err > 0)
+			return err;
+		if (header.Nb == 0)//something is wring
+		{
+			std::cerr << "ERROR: Image to read has not blocks" << std::endl;
+			return 2;
+		}
+	}
 
 	if (numThreads <= 0)//use maximum available
 		numThreads = std::thread::hardware_concurrency();
@@ -1088,10 +1124,10 @@ std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
 
 	switch (header.compressionType)
 	{
-	case 0://no compression
+	case KLB_COMPRESSION_TYPE::NONE://no compression
 		//nothing to do
 		break;
-	case 1://bzip2
+	case KLB_COMPRESSION_TYPE::BZIP2://bzip2
 		/*
 			From man page: Compression is  always  performed,  even	 if  the  compressed  file  is
 			slightly	 larger	 than the original.Files of less than about one hun -

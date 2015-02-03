@@ -9,33 +9,11 @@
 *      Author: Fernando Amat
 *
 * \brief Main image heade rutilities for klb format
-*
-
-* Following mylib conventions here are the data types
-typedef enum
-{ UINT8_TYPE   = 0,
-UINT16_TYPE  = 1,
-UINT32_TYPE  = 2,
-UINT64_TYPE  = 3,
-INT8_TYPE    = 4,
-INT16_TYPE   = 5,
-INT32_TYPE   = 6,
-INT64_TYPE   = 7,
-FLOAT32_TYPE = 8,
-FLOAT64_TYPE = 9
-} Value_Type;
-*
-*
-*
-*
-*
-Compression type look up table (add to the list if you use a different one)
-NONE = 0,
-PBZIP2 = 1
 */
 
 #ifndef __KLB_IMAGE_HEADER_H__
 #define __KLB_IMAGE_HEADER_H__
+
 
 
 #include <cstdint>
@@ -49,6 +27,31 @@ typedef float  float32_t;
 typedef double float64_t;
 
 #define KLB_DATA_DIMS (5) //our images at the most have 5 dimensions: x,y,z, c, t
+
+
+// Following mylib conventions here are the data types
+enum KLB_DATA_TYPE
+{
+	UINT8_TYPE = 0,
+	UINT16_TYPE = 1,
+	UINT32_TYPE = 2,
+	UINT64_TYPE = 3,
+	INT8_TYPE = 4,
+	INT16_TYPE = 5,
+	INT32_TYPE = 6,
+	INT64_TYPE = 7,
+	FLOAT32_TYPE = 8,
+	FLOAT64_TYPE = 9
+};
+
+//Compression type look up table (add to the list if you use a different one)
+//To add more compression types just add it here and look for 
+enum KLB_COMPRESSION_TYPE
+{
+	NONE = 0,
+	BZIP2 = 1
+};
+
 
 #if defined(COMPILE_SHARED_LIBRARY) && defined(_MSC_VER)
 class __declspec(dllexport) klb_image_header
@@ -66,8 +69,7 @@ public:
 	std::uint32_t					blockSize[KLB_DATA_DIMS];     //block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB
 	std::uint64_t*		blockOffset; //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i]). I use a pointer (instead of vector) to facilitate dllexport to shared library
 	size_t Nb;//length of blockOffset array
-
-
+	
 	//constructors 
 	klb_image_header(const klb_image_header& p);
 	~klb_image_header();
