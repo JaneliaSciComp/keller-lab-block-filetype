@@ -18,8 +18,11 @@
 
 #include "klb_imageHeader.h"
 
-
+#if defined(COMPILE_SHARED_LIBRARY) && defined(_MSC_VER)
+class __declspec(dllexport) klb_ROI
+#else
 class klb_ROI
+#endif
 {
 public:
 	std::uint32_t xyzctLB[KLB_DATA_DIMS];//lower bound (upper left corner) of the box (including this limit)

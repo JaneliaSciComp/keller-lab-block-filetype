@@ -27,10 +27,13 @@
 #include <vector>
 #include <cstdint>
 #include <list>
-#include <string>
 
 #if defined(_WIN32) || defined(_WIN64)
+	#include <string>
 	#define NOMINMAX
+#else
+	#include <string.h>
+	#include <cmath>
 #endif
 
 #include "bzlib.h"

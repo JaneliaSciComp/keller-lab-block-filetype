@@ -22,22 +22,30 @@
 
 //#define PROFILE_COMPRESSION //uncomment to check how much is spent in compression
 
-
-
-
 #include "klb_imageHeader.h"
 #include "klb_circularDequeue.h"
 #include "klb_ROI.h"
 
 #if defined(COMPILE_SHARED_LIBRARY) && defined(_MSC_VER)
-class __declspec(dllexport) klb_imageIO
+#define DECLSPECIFIER __declspec(dllexport)
+#define EXPIMP_TEMPLATE
+
 #else
-class klb_imageIO
+
+#define DECLSPECIFIER
+#define EXPIMP_TEMPLATE
+
 #endif
+
+//from http://support2.microsoft.com/default.aspx?scid=KB;EN-US;168958 to export DLL with STL objects within the class
+//all the STL containers are private, so it should be safe to ignore the warnings for stl::string http://stackoverflow.com/questions/767579/exporting-classes-containing-std-objects-vector-map-etc-from-a-dll
+EXPIMP_TEMPLATE class DECLSPECIFIER std::mutex;
+EXPIMP_TEMPLATE class DECLSPECIFIER std::condition_variable;
+
+class DECLSPECIFIER klb_imageIO
 {
 public:
-
-	std::string filename;
+	
 	klb_image_header header;
 	int numThreads;//number of threads to use
 
@@ -46,7 +54,8 @@ public:
 	klb_imageIO(const std::string &filename_);
 
 	//set/get functions
-	
+	std::string getFilename() const{ return filename; };
+	void setFilename(const std::string &filename_){ filename = filename_; };
 
 	//main functions
 	int readHeader(){ return header.readHeader(filename.c_str()); };
@@ -59,23 +68,25 @@ public:
 	/*
 	\brief	Main function to save an image. We assume the correct header has been set prior to calling this function. 
 	*/
-	int writeImage(const char* img, int numThreads);
+	int writeImage(const char* BYTE, int numThreads);
 
 
 	/*
 	\brief	Main function to read an image (or part of an image defined by ROI).We assume the correct header has been set prior to calling this function. 
 	*/
-	int readImage(char* img, const klb_ROI* ROI, int numThreads);
+	int readImage(char* BYTE, const klb_ROI* ROI, int numThreads);
 
 
 	/*
 	\brief We preload all the file in memory and the threads read from memory (not from disk). Consumes more memory but it is XXX faster. It only makes sense to read the whole image
 	*/
-	int readImageFull(char* imgOut, int numThreads);
+	int readImageFull(char* BYTE, int numThreads);
 
 protected:
 
 private:
+	std::string filename;
+
 	std::mutex              g_lockqueue;//mutex for the condition variable
 	std::condition_variable	g_queuecheck;//to notify writer that blocks are ready
 #ifdef PROFILE_COMPRESSION

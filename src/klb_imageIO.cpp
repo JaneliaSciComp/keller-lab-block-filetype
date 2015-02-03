@@ -775,7 +775,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	*errFlag = 0;
 	std::int64_t nextBlockId = 0, offset = 0;
 	std::uint64_t numBlocks = header.getNumBlocks();
-	header.blockOffset.resize(numBlocks);//just in case it has not been setup
+	header.resizeBlockOffset(numBlocks);//just in case it has not been setup
 
 //#define USE_MEM_BUFFER //uncomment this line to use a large memory buffer before writing to file. It is slower since C++ write already buffers ofstream before flushing
 
@@ -850,7 +850,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 #endif
 	//update header.blockOffset
 	fout.seekp(header.getSizeInBytesFixPortion(), ios::beg);
-	fout.write((char*)(&(header.blockOffset[0])) ,header.blockOffset.size() * sizeof(std::uint64_t) );
+	fout.write((char*)(&(header.blockOffset[0])) ,header.Nb * sizeof(std::uint64_t) );
 
 	//close file
 	fout.close();
@@ -908,7 +908,7 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	const uint64_t fLength = header.getImageSizeBytes();			
 	const std::uint64_t numBlocks = header.calculateNumBlocks();
 	
-	header.blockOffset.resize(numBlocks);
+	header.resizeBlockOffset(numBlocks);
 
 
 	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
@@ -919,7 +919,7 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 
 	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
 	int* g_blockThreadId = new int[numBlocks];//indicates which thread wrote the nlock so the writer can find the appropoate circular queue
-	for (std::int64_t ii = 0; ii < numBlocks; ii++)
+	for (std::uint64_t ii = 0; ii < numBlocks; ii++)
 	{
 		g_blockSize[ii] = -1;
 		g_blockThreadId[ii] = -1;

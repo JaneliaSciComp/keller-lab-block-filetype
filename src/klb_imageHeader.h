@@ -50,7 +50,11 @@ typedef double float64_t;
 
 #define KLB_DATA_DIMS (5) //our images at the most have 5 dimensions: x,y,z, c, t
 
+#if defined(COMPILE_SHARED_LIBRARY) && defined(_MSC_VER)
+class __declspec(dllexport) klb_image_header
+#else
 class klb_image_header
+#endif
 {
 public:
 
@@ -60,7 +64,9 @@ public:
 	std::uint8_t					dataType;     //lookup table for data type (uint8, uint16, etc)
 	std::uint8_t					compressionType; //lookup table for compression type (none, pbzip2,etc)
 	std::uint32_t					blockSize[KLB_DATA_DIMS];     //block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB
-	std::vector<std::uint64_t>		blockOffset; //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i])
+	std::uint64_t*		blockOffset; //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i]). I use a pointer (instead of vector) to facilitate dllexport to shared library
+	size_t Nb;//length of blockOffset array
+
 
 	//constructors 
 	klb_image_header(const klb_image_header& p);
@@ -75,9 +81,9 @@ public:
 	int readHeader(const char *filename);
 
 	//set/get functions
-	size_t getNumBlocks(){ return blockOffset.size(); };
+	size_t getNumBlocks(){ return Nb; };
 	size_t calculateNumBlocks();
-	size_t getSizeInBytes() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t) ) + 2 * sizeof(std::uint8_t) + blockOffset.size() * sizeof(std::uint64_t); };
+	size_t getSizeInBytes() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t) ) + 2 * sizeof(std::uint8_t) + Nb * sizeof(std::uint64_t); };
 	size_t getSizeInBytesFixPortion() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t)) + 2 * sizeof(std::uint8_t); };
 	size_t getBytesPerPixel();
 	std::uint32_t getBlockSizeBytes();
@@ -87,6 +93,7 @@ public:
 	std::uint64_t getBlockOffset(size_t blockIdx);//offset in compressed file without counting header (so you have to add getSizeInBytes() for total offset
 	std::uint64_t getCompressedFileSizeInBytes();
 	void setDefaultBlockSize();//sets default block size based on our analysis for our own images
+	void resizeBlockOffset(size_t Nb_);
 
 protected:
 

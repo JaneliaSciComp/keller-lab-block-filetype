@@ -116,8 +116,8 @@ int main(int argc, const char** argv)
 		*/
 	}
 	else{//read image
-		imgIO.filename = string(filenameOut + ".klb");
-		imgXYplane.filename = string(filenameOut + ".klb");
+		imgIO.setFilename( string(filenameOut + ".klb") );
+		imgXYplane.setFilename ( string(filenameOut + ".klb") );
 		ifstream fin(string(filenameOut + ".raw").c_str(), ios::binary | ios::in);
 
 		if (fin.is_open() == false)

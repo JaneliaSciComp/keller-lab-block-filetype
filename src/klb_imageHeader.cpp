@@ -29,7 +29,8 @@ klb_image_header& klb_image_header::operator=(const klb_image_header& p)
 		dataType = p.dataType;
 		compressionType = p.compressionType;
 		memcpy(blockSize, p.blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
-		blockOffset = p.blockOffset;
+		resizeBlockOffset(p.Nb);
+		memcpy(blockOffset, p.blockOffset, sizeof(uint64_t)* Nb);
 		memcpy(optimalBlockSizeInBytes, p.optimalBlockSizeInBytes, sizeof(uint32_t)* KLB_DATA_DIMS);
 	}
 	return *this;
@@ -44,7 +45,10 @@ klb_image_header::klb_image_header(const klb_image_header& p)
 	dataType = p.dataType;
 	compressionType = p.compressionType;
 	memcpy(blockSize, p.blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
-	blockOffset = p.blockOffset;
+	
+	Nb = p.Nb;
+	blockOffset = new std::uint64_t[Nb];
+	memcpy(blockOffset, p.blockOffset, sizeof(uint64_t)* Nb);
 
 	memcpy(optimalBlockSizeInBytes, p.optimalBlockSizeInBytes, sizeof(uint32_t)* KLB_DATA_DIMS);
 
@@ -54,13 +58,20 @@ klb_image_header::klb_image_header()
 {
 	memset(xyzct, 0, sizeof(uint32_t)* KLB_DATA_DIMS);
 
+	Nb = 0;
+	blockOffset = NULL;
+
 	const uint32_t optimalBlockSizeInBytes_[KLB_DATA_DIMS] = { 192, 192, 16, 1, 1 };
 	memcpy(optimalBlockSizeInBytes, optimalBlockSizeInBytes_, sizeof(uint32_t)* KLB_DATA_DIMS);
 }
 
 klb_image_header::~klb_image_header()
 {
-	blockOffset.clear();
+	if (Nb != 0)
+	{
+		delete[] blockOffset;
+		blockOffset = NULL;
+	}
 }
 
 //==========================================
@@ -147,7 +158,7 @@ void klb_image_header::writeHeader(std::ostream &fid)
 	fid.write((char*)(&dataType), sizeof(uint8_t));
 	fid.write((char*)(&compressionType), sizeof(uint8_t));
 	fid.write((char*)blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
-	fid.write((char*)(&(blockOffset[0])), sizeof(uint64_t)* blockOffset.size());//this is the only variable size element
+	fid.write((char*)blockOffset, sizeof(uint64_t)* Nb);//this is the only variable size element
 };
 
 //=======================================================
@@ -159,10 +170,25 @@ void klb_image_header::readHeader(std::istream &fid)
 	fid.read((char*)(&compressionType), sizeof(uint8_t));
 	fid.read((char*)blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
 
-	blockOffset.resize(calculateNumBlocks());
-	fid.read((char*)(&(blockOffset[0])), sizeof(uint64_t)* blockOffset.size());//this is the only variable size element
+	
+	//resize if necessary
+	resizeBlockOffset(calculateNumBlocks());
+	
+	fid.read((char*)blockOffset, sizeof(uint64_t)* Nb);//this is the only variable size element
 };
 
+//======================================================
+void klb_image_header::resizeBlockOffset(size_t Nb_)
+{
+	//resize if necessary	
+	if (Nb != Nb_)
+	{
+		if (Nb != 0)
+			delete[] blockOffset;
+		Nb = Nb_;
+		blockOffset = new std::uint64_t[Nb];
+	}
+}
 
 //=======================================================
 int klb_image_header::readHeader(const char *filename)
@@ -182,7 +208,7 @@ int klb_image_header::readHeader(const char *filename)
 //==========================================================
 size_t  klb_image_header::getBlockCompressedSizeBytes(size_t blockIdx)
 {
-	if (blockIdx >= blockOffset.size())
+	if (blockIdx >= Nb)
 		return 0;
 	else if (blockIdx == 0 )//first block
 	{
@@ -197,7 +223,7 @@ size_t  klb_image_header::getBlockCompressedSizeBytes(size_t blockIdx)
 //======================================================
 std::uint64_t klb_image_header::getBlockOffset(size_t blockIdx)
 {
-	if (blockIdx >= blockOffset.size())
+	if (blockIdx >= Nb)
 		return numeric_limits<std::uint64_t>::max();
 	else if (blockIdx == 0)//first block
 	{
@@ -211,7 +237,7 @@ std::uint64_t klb_image_header::getBlockOffset(size_t blockIdx)
 //======================================================
 std::uint64_t klb_image_header::getCompressedFileSizeInBytes()
 {
-	return getSizeInBytes() + blockOffset.back();
+	return getSizeInBytes() + blockOffset[Nb-1];
 }
 
 void klb_image_header::setDefaultBlockSize()

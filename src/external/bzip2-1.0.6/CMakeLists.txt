@@ -1,8 +1,10 @@
 project ( bzip2 )
 cmake_minimum_required ( VERSION 2.8 )
 
+IF( CMAKE_COMPILER_IS_GNUCC )
+	add_definitions ( -D_FILE_OFFSET_BITS=64 -fPIC )
+ENDIF()
 
-add_definitions ( -D_FILE_OFFSET_BITS=64 )
 
 # Library
 set ( BZIP2_SRCS  crctable.c randtable.c compress.c decompress.c bzlib.c blocksort.c huffman.c)
