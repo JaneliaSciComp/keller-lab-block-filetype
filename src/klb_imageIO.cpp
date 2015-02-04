@@ -240,8 +240,8 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 {
 	*errFlag = 0;
 	//open file to read elements
-	ifstream fid(filename.c_str(), ios::binary | ios::in);
-	if (fid.is_open() == false)
+	FILE* fid = fopen(filename.c_str(), "rb"); 
+	if ( fid == NULL )
 	{
 		cout << "ERROR: blockUncompressor: thread opening file " << filename << endl;
 		*errFlag = 3;
@@ -325,8 +325,9 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 		sizeCompressed = header.getBlockCompressedSizeBytes(blockId_t);
 		offset = header.getBlockOffset(blockId_t);
 
-		fid.seekg(offsetHeaderBytes + offset , ios::beg);
-		fid.read(bufferFile, sizeCompressed);//read compressed block
+		
+		fseek(fid, offsetHeaderBytes + offset, SEEK_SET);
+		fread(bufferFile, 1, sizeCompressed, fid);//read compressed block
 
 		//apply decompression to block
 		switch (header.compressionType)
@@ -441,7 +442,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 
 
 	//release memory
-	fid.close();
+	fclose(fid);
 	delete[] bufferIn;
 	delete[] bufferFile;
 
@@ -607,9 +608,9 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 {
 	*errFlag = 0;
 
-	//open file to read elements
-	ifstream fid(filename.c_str(), ios::binary | ios::in);
-	if (fid.is_open() == false)
+	//open file to read elements	
+	FILE* fid = fopen(filename.c_str(), "rb");
+	if ( fid == NULL )
 	{
 		cout << "ERROR: blockUncompressor: thread opening file " << filename << endl;
 		*errFlag = 3;
@@ -673,9 +674,8 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 		sizeCompressed = header.getBlockCompressedSizeBytes(blockId_t);
 		offset = header.getBlockOffset(blockId_t);
 
-		fid.seekg(offsetHeaderBytes + offset, ios::beg);
-		fid.read(bufferFile, sizeCompressed);//read compressed block
-
+		fseek(fid, offsetHeaderBytes + offset, SEEK_SET);
+		fread(bufferFile, 1, sizeCompressed, fid);
 
 		//apply decompression to block
 		switch (header.compressionType)
@@ -762,7 +762,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 
 
 	//release memory
-	fid.close();
+	fclose(fid);
 	delete[] bufferIn;
 	delete[] bufferFile;
 
@@ -1077,17 +1077,17 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 
 #ifdef USE_MEM_BUFFER_READ		
 	//read compressed file from disk into memory
-	//open file to read elements
-	ifstream fid(filename.c_str(), ios::binary | ios::in);
-	if (fid.is_open() == false)
+	//open file to read elements	
+	FILE* fid = fopen(filename.c_str(), "rb");
+	if (fid == NULL)
 	{
 		cout << "ERROR: readImageFull: reading file " << filename << endl;
 		return 3;
 	}
 	//auto t1 = Clock::now();
 	char* imgIn = new char[header.getCompressedFileSizeInBytes()];
-	fid.read(imgIn, header.getCompressedFileSizeInBytes());
-	fid.close();
+	fread(imgIn, 1, header.getCompressedFileSizeInBytes(), fid);
+	fclose(fid);
 	//auto t2 = Clock::now();
 	//std::cout << "=======DEBUGGING:took " << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms to read file from disk memory by a single thread" << std::endl;
 #endif
