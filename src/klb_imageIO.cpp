@@ -777,9 +777,9 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	std::uint64_t numBlocks = header.getNumBlocks();
 	header.resizeBlockOffset(numBlocks);//just in case it has not been setup
 
-//#define USE_MEM_BUFFER //uncomment this line to use a large memory buffer before writing to file. It is slower since C++ write already buffers ofstream before flushing
+#define USE_MEM_BUFFER_WRITE //uncomment this line to use a large memory buffer before writing to file. It is slower since C++ write already buffers ofstream before flushing. However using C interface (FILE* it is faster)
 
-#ifdef USE_MEM_BUFFER
+#ifdef USE_MEM_BUFFER_WRITE
 	//buffer to avoid writing to disk all the time
 	int bufferMaxSize = std::min( header.getImageSizeBytes() / 10, (uint64_t) (500 * 1048576));//maximum is 500MB or 10th of the original image size
 	char* bufferMem = new char[bufferMaxSize];
@@ -787,8 +787,9 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 #endif	
 
 	//open output file
-	std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);
-	if (fout.is_open() == false)
+	//std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);	
+	FILE* fout = fopen(filenameOut.c_str(), "wb");//for wahtever reason FILE* is 4X faster than std::ofstream over the network. C interface is much faster than C++ streams
+	if ( fout == NULL )
 	{
 		std::cout << "ERROR: file " << filenameOut << " could not be opened" << std::endl;
 		nextBlockId = numBlocks;
@@ -796,7 +797,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	}
 
 	//write header
-	header.writeHeader(fout);
+	header.writeHeader(fout);	
 
 	// loop until end is signaled			
 	std::int64_t blockSize;
@@ -820,11 +821,11 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		//write block
 		blockSize = g_blockSize[nextBlockId];
 
-#ifdef USE_MEM_BUFFER
+#ifdef USE_MEM_BUFFER_WRITE
 		//use memory large memory buffer
 		if (bufferOffset + blockSize > bufferMaxSize)//we need to flush the buffer
 		{
-			fout.write(bufferMem, bufferOffset);
+			fwrite(bufferMem, 1, bufferOffset, fout);
 			bufferOffset = 0;
 		}
 		
@@ -832,7 +833,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		memcpy(&(bufferMem[bufferOffset]), cq[g_blockThreadId[nextBlockId]]->getReadBlock(), blockSize);
 		bufferOffset += blockSize;
 #else
-		fout.write(cq[g_blockThreadId[nextBlockId]]->getReadBlock(), blockSize);
+		fwrite(cq[g_blockThreadId[nextBlockId]]->getReadBlock(),1, blockSize, fout);
 #endif
 		//now we can release data
 		cq[g_blockThreadId[nextBlockId]]->popReadBlock();
@@ -844,17 +845,18 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		//update variables
 		nextBlockId++;
 	}
-#ifdef USE_MEM_BUFFER
+#ifdef USE_MEM_BUFFER_WRITE
 	//flush the rest of the buffer
-	fout.write(bufferMem, bufferOffset);
+	fwrite(bufferMem, 1, bufferOffset, fout);
 #endif
-	//update header.blockOffset
-	fout.seekp(header.getSizeInBytesFixPortion(), ios::beg);
-	fout.write((char*)(&(header.blockOffset[0])) ,header.Nb * sizeof(std::uint64_t) );
+	//update header.blockOffset	
+	fseek(fout, header.getSizeInBytesFixPortion(), SEEK_SET);
+	fwrite((char*)(&(header.blockOffset[0])), 1, header.Nb * sizeof(std::uint64_t), fout);
 
-	//close file
-	fout.close();
-#ifdef USE_MEM_BUFFER
+	//close file	
+	fclose(fout);
+
+#ifdef USE_MEM_BUFFER_WRITE
 	delete[] bufferMem;
 #endif
 }
@@ -1070,8 +1072,10 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 	std::atomic<uint64_t>	g_blockId;
 	atomic_store(&g_blockId, (uint64_t)0);
 
+	
+//#define USE_MEM_BUFFER_READ //uncomment this line to read the compressed file in memory first to have a single read access to the disk
 
-#ifdef USE_MEM_BUFFER		
+#ifdef USE_MEM_BUFFER_READ		
 	//read compressed file from disk into memory
 	//open file to read elements
 	ifstream fid(filename.c_str(), ios::binary | ios::in);
@@ -1093,7 +1097,7 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 	std::vector<int> errFlagVec(numThreads, 0);
 	for (int i = 0; i < numThreads; ++i)
 	{
-#ifdef USE_MEM_BUFFER		
+#ifdef USE_MEM_BUFFER_READ		
 			threads.push_back(std::thread(&klb_imageIO::blockUncompressorInMem, this, imgOut, &g_blockId, imgIn, &(errFlagVec[i])));
 #else
 		threads.push_back(std::thread(&klb_imageIO::blockUncompressorImageFull, this, imgOut, &g_blockId, &(errFlagVec[i])));		
@@ -1105,7 +1109,7 @@ int klb_imageIO::readImageFull(char* imgOut, int numThreads)
 		t.join();
 
 	//release memory
-#ifdef USE_MEM_BUFFER		
+#ifdef USE_MEM_BUFFER_READ		
 	delete[] imgIn;
 #endif
 	for (int ii = 0; ii < numThreads; ii++)

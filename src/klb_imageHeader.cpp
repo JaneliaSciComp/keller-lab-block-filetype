@@ -161,6 +161,17 @@ void klb_image_header::writeHeader(std::ostream &fid)
 	fid.write((char*)blockOffset, sizeof(uint64_t)* Nb);//this is the only variable size element
 };
 
+//==============================================================
+void klb_image_header::writeHeader(FILE* fid)
+{
+	fwrite((char*)xyzct,1, sizeof(uint32_t)* KLB_DATA_DIMS, fid);
+	fwrite((char*)pixelSize, 1, sizeof(float32_t)* KLB_DATA_DIMS, fid);
+	fwrite((char*)(&dataType), 1, sizeof(uint8_t), fid);
+	fwrite((char*)(&compressionType), 1, sizeof(uint8_t), fid);
+	fwrite((char*)blockSize, 1, sizeof(uint32_t)* KLB_DATA_DIMS, fid);
+	fwrite((char*)blockOffset, 1, sizeof(uint64_t)* Nb, fid);//this is the only variable size element
+};
+
 //=======================================================
 void klb_image_header::readHeader(std::istream &fid)
 {

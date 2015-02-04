@@ -79,6 +79,7 @@ public:
 
 	//main functionality
 	void writeHeader(std::ostream &fid);
+	void writeHeader(FILE* fid);
 	void readHeader(std::istream &fid);
 	int readHeader(const char *filename);
 

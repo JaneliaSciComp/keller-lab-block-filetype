@@ -28,7 +28,7 @@ typedef std::chrono::high_resolution_clock Clock;
 
 int main(int argc, const char** argv)
 {
-	int numThreads = 10;//<= 0 indicates use as many as possible
+	int numThreads = 0;//<= 0 indicates use as many as possible
 	int compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none
 	std::string filenameOut("E:/compressionFormatData/debugGradient.klb");
 
@@ -51,9 +51,15 @@ int main(int argc, const char** argv)
 	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 8, 8, 8, 1, 1 };
 
 	//large size real dataset (zebrafish)
-	filenameOut = string("E:/compressionFormatData/ZebrafishTM200");
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 64, 16, 1, 1 };
+	//filenameOut = string("E:/compressionFormatData/ZebrafishTM200");
+	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 64, 16, 1, 1 };
+
+
+	//drosophila stack masked
+	filenameOut = string("C:/Users/Fernando/temp/debugKLB");
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 137, 1, 1 };
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
 
 	//very small size for debugging purposes (it does not work with bzip2)
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 20, 17, 10, 1, 1 };
@@ -133,17 +139,22 @@ int main(int argc, const char** argv)
 	
 	cout << "Compressing file to " << filenameOut << endl;
 
-	t1 = Clock::now();
-	err = imgIO.writeImage((char*)img, numThreads);//all the threads available
-	if (err > 0)
-		return 2;
+	//cout<<"WRITING FILE IN NETWORK"<<endl;
+	//imgIO.setFilename( string("Y:/Exchange/Philipp/Manuscripts/Article SiMView Processing Pipeline/MatlabCode/Benchmarks/temp/debug.klb") );
+	for (int aa = 0; aa < 1; aa++)
+	{
+		//char buffer[256];
+		//sprintf(buffer, "Y:/Exchange/Philipp/Manuscripts/Article SiMView Processing Pipeline/MatlabCode/Benchmarks/temp/debug%d.klb", aa);
+		//imgIO.setFilename(string(buffer));
+		t1 = Clock::now();
+		err = imgIO.writeImage((char*)img, numThreads);//all the threads available
+		if (err > 0)
+			return 2;
 
-	t2 = Clock::now();
+		t2 = Clock::now();
+		std::cout << "Written test file at " << filenameOut << " compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using " << numThreads << " threads" << std::endl;
 
-	
-
-
-	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using "<<numThreads<<" threads"<< std::endl;
+	}
 
 	//===========================================================================================
 	//===========================================================================================
@@ -187,6 +198,7 @@ int main(int argc, const char** argv)
 
 	delete[] imgA;
 	
+	return 0;
 	//===========================================================================================
 	//===========================================================================================
 
