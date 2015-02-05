@@ -61,8 +61,17 @@ klb_image_header::klb_image_header()
 	Nb = 0;
 	blockOffset = NULL;
 
+	//default values
 	const uint32_t optimalBlockSizeInBytes_[KLB_DATA_DIMS] = { 192, 192, 16, 1, 1 };
 	memcpy(optimalBlockSizeInBytes, optimalBlockSizeInBytes_, sizeof(uint32_t)* KLB_DATA_DIMS);
+
+	
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		pixelSize[ii] = 1.0f;//default value
+
+	compressionType = KLB_COMPRESSION_TYPE::BZIP2;
+
+	//you still need to set xyzct, dataType, blockSize and blockOffset
 }
 
 klb_image_header::~klb_image_header()

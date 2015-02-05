@@ -59,7 +59,7 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
 		imgIO.header.xyzct[ii] = 1;
-		imgIO.header.pixelSize[ii] = -1.0f;;//so users know it was not especified
+		imgIO.header.pixelSize[ii] = 1.0f;;//so users know it was not especified
 	}	
 	
     // check: only one input and one output argument
