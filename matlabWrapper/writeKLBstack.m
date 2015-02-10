@@ -17,5 +17,6 @@
 % 
 % compressionType (optional): integer scalar to define compression used to store each block. Right now, 0 = none, 1 = bzip2 (default). You can add your own using the source code of the klb library;
 % 
+% metadata (optional): char[KLB_METADATA_SIZE] to store any extra information you want
     
-function  writeKLBstack(im, filename, numThreads, pixelSize, blockSize, compressionType) 
+function  writeKLBstack(im, filename, numThreads, pixelSize, blockSize, compressionType, metadata) 

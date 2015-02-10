@@ -59,7 +59,9 @@ int main(int argc, const char** argv)
 	//drosophila stack masked
 	filenameOut = string("C:/Users/Fernando/temp/debugKLB");
 	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 5, 1, 1 };//137
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
+
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 1001, 1701, 3, 1, 1 };
 
 	//very small size for debugging purposes (it does not work with bzip2)
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 20, 17, 10, 1, 1 };

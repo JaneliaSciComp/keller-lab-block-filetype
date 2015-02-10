@@ -9,7 +9,7 @@
 *     See licenseGMEM.txt for full license and copyright notice.
 *     
 *     \brief Set of utilities to read/write KLB format
-*       writeKLBstack(im, filenameOut, numThreads, pixelSize, blockSize, compressionType)     
+*       writeKLBstack(im, filenameOut, numThreads, pixelSize, blockSize, compressionType, metadata)     
 */
 
 
@@ -127,6 +127,44 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 			}            
             break;
             
+        case 7://metadata is added
+            if (mxIsEmpty(prhs[2]) == false)
+			{
+				numThreads = (int)(mxGetPr(prhs[2])[0]);
+			}
+			if (mxIsEmpty(prhs[3]) == false)
+			{
+				for (int ii = 0; ii < min((int)KLB_DATA_DIMS, (int)mxGetNumberOfElements(prhs[3])); ii++)
+					imgIO.header.pixelSize[ii] = (float)(mxGetPr(prhs[3])[ii]);
+			}
+			if (mxIsEmpty(prhs[4]) == false)
+			{
+				for (int ii = 0; ii < min((int)KLB_DATA_DIMS, (int)mxGetNumberOfElements(prhs[4])); ii++)
+					imgIO.header.blockSize[ii] = (float)(mxGetPr(prhs[4])[ii]);
+			}
+			if (mxIsEmpty(prhs[5]) == false)
+			{
+				imgIO.header.compressionType = (int)(mxGetPr(prhs[5])[0]);
+			} 
+            
+            if( mxIsEmpty(prhs[6]) == false )
+            {
+                if( mxGetClassID(prhs[6]) != mxCHAR_CLASS )
+                    mexErrMsgTxt("Metadata has to been a char array");
+                                
+                int charSize = mxGetN(prhs[6]);
+				
+				if (charSize > KLB_METADATA_SIZE)
+					mexErrMsgTxt("Metadata cannot contain more than KLB_METADATA_SIZE bytes");
+                
+				mwSize strlen;
+				int errM = mxGetString(prhs[6], imgIO.header.metadata, strlen);
+
+				if (errM != 0)
+					mexErrMsgTxt("Error converting metadata");
+                
+            }
+            break;
         default:
             mexErrMsgTxt("Number of arguments is incorrect");
             
@@ -185,8 +223,11 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 			mexErrMsgTxt("Data type not supported");
 	}
   	 
-    imgIO.header.setDefaultBlockSize();
-    imgIO.header.compressionType = 1;//bzip2 by default
+    if (mxIsEmpty(prhs[4]) == true)
+        imgIO.header.setDefaultBlockSize();
+    
+    if (mxIsEmpty(prhs[5]) == true)
+        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::BZIP2;//bzip2 by default
 
     
 	error = imgIO.writeImage((char*)(mxGetData(prhs[0])), numThreads);//all the threads available

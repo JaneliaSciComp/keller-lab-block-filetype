@@ -56,8 +56,8 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 		
 
 	//allocate memory and prepare struct to return
-	const int nfields = 5;//it has to match fieldnames
-	const char *fieldnames[] = { "xyzct", "pixelSize", "dataType", "compressionType", "blockSize"};       /* pointers to field names */
+	const int nfields = 7;//it has to match fieldnames
+	const char *fieldnames[] = { "xyzct", "pixelSize", "dataType", "compressionType", "blockSize", "metadata", "headerVersion"};       /* pointers to field names */
 
 	/* create a 1x1 struct matrix for output  */
 	plhs[0] = mxCreateStructMatrix(1, 1, nfields, fieldnames);
@@ -98,6 +98,17 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		ptr[ii] = imgIO.header.blockSize[ii];
 	mxSetFieldByNumber(plhs[0], 0, 4, field_value_4);//field number is 0-indexed
+    
+    //set metadat as a char        
+	mxArray *field_value_5 = mxCreateString(imgIO.header.metadata);	
+	mxSetFieldByNumber(plhs[0], 0, 5, field_value_5);//field number is 0-indexed
+    
+    
+    //set header version
+	mxArray *field_value_6 = mxCreateDoubleMatrix(1, 1, mxREAL);
+	ptr = mxGetPr(field_value_6);
+	ptr[0] = imgIO.header.headerVersion;
+	mxSetFieldByNumber(plhs[0], 0, 6, field_value_6);//field number is 0-indexed
 
 	//release memory	
     mxFree(filename);

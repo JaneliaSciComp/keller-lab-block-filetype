@@ -256,7 +256,7 @@ std::uint64_t klb_image_header::getCompressedFileSizeInBytes() const
 void klb_image_header::setDefaultBlockSize()
 {
 	std::uint32_t bytesPerPixel = getBytesPerPixel();	
-
+	setOptimalBlockSizeInBytes();
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
 		blockSize[ii] = optimalBlockSizeInBytes[ii] / bytesPerPixel;
