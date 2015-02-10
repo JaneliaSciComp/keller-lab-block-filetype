@@ -28,7 +28,7 @@ typedef std::chrono::high_resolution_clock Clock;
 
 int main(int argc, const char** argv)
 {
-	int numThreads = 0;//<= 0 indicates use as many as possible
+	int numThreads = 10;//<= 0 indicates use as many as possible
 	int compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none
 	std::string filenameOut("E:/compressionFormatData/debugGradient.klb");
 
@@ -58,7 +58,7 @@ int main(int argc, const char** argv)
 
 	//drosophila stack masked
 	filenameOut = string("C:/Users/Fernando/temp/debugKLB");
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 137, 1, 1 };
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 5, 1, 1 };//137
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
 
 	//very small size for debugging purposes (it does not work with bzip2)
@@ -89,12 +89,19 @@ int main(int argc, const char** argv)
 	klb_imageIO imgIO( filenameOut );
 
 	//setup header
+	float32_t pixelSize_[KLB_DATA_DIMS];
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		pixelSize_[ii] = 1.2f*(ii + 1);
+
+	char metadata_[KLB_METADATA_SIZE];
+	sprintf(metadata_, "Testing metadata");
+
+	imgIO.header.setHeader(xyzct, KLB_DATA_TYPE::UINT16_TYPE, pixelSize_, blockSize, compressionType, metadata_);
 	memcpy(imgIO.header.xyzct, xyzct, sizeof(uint32_t)* KLB_DATA_DIMS);
 	memcpy(imgIO.header.blockSize, blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
 	imgIO.header.dataType = 1;//uint16
 	imgIO.header.compressionType = compressionType;
-	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
-		imgIO.header.pixelSize[ii] = 1.2f*(ii+1);
+	
 
 
 	//generate artificial image: gradient is nice since we can debug very fast by visual inspection or random for uncompressibility
@@ -198,7 +205,7 @@ int main(int argc, const char** argv)
 
 	delete[] imgA;
 	
-	return 0;
+
 	//===========================================================================================
 	//===========================================================================================
 

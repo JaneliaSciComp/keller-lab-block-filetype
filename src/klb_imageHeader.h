@@ -27,7 +27,8 @@ typedef float  float32_t;
 typedef double float64_t;
 
 #define KLB_DATA_DIMS (5) //our images at the most have 5 dimensions: x,y,z, c, t
-
+#define KLB_METADATA_SIZE (256) //number of bytes in metadata
+#define KLB_DEFAULT_HEADER_VERSION (2) //def
 
 // Following mylib conventions here are the data types
 enum KLB_DATA_TYPE
@@ -62,14 +63,17 @@ class klb_image_header
 public:
 
 	//header fields
+	std::uint8_t					headerVersion;		//indicates header version(always the first byte)
 	std::uint32_t					xyzct[KLB_DATA_DIMS];     //image dimensions in pixels
 	float32_t						pixelSize[KLB_DATA_DIMS];     //pixel size (in um,au,secs) for each dimension
 	std::uint8_t					dataType;     //lookup table for data type (uint8, uint16, etc)
 	std::uint8_t					compressionType; //lookup table for compression type (none, pbzip2,etc)
-	std::uint32_t					blockSize[KLB_DATA_DIMS];     //block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB
+	char							metadata[KLB_METADATA_SIZE];//wildcard to store any data you want
+	std::uint32_t					blockSize[KLB_DATA_DIMS];     //block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB	
 	std::uint64_t*		blockOffset; //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i]). I use a pointer (instead of vector) to facilitate dllexport to shared library
+
 	size_t Nb;//length of blockOffset array
-	
+
 	//constructors 
 	klb_image_header(const klb_image_header& p);
 	~klb_image_header();
@@ -84,19 +88,24 @@ public:
 	int readHeader(const char *filename);
 
 	//set/get functions
-	size_t getNumBlocks(){ return Nb; };
-	size_t calculateNumBlocks();
-	size_t getSizeInBytes() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t) ) + 2 * sizeof(std::uint8_t) + Nb * sizeof(std::uint64_t); };
-	size_t getSizeInBytesFixPortion() { return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t)) + 2 * sizeof(std::uint8_t); };
-	size_t getBytesPerPixel();
-	std::uint32_t getBlockSizeBytes();
-	std::uint64_t getImageSizeBytes();
-	std::uint64_t getImageSizePixels();
-	size_t getBlockCompressedSizeBytes(size_t blockId);
-	std::uint64_t getBlockOffset(size_t blockIdx);//offset in compressed file without counting header (so you have to add getSizeInBytes() for total offset
-	std::uint64_t getCompressedFileSizeInBytes();
+	size_t getNumBlocks() const{ return Nb; };
+	int getMetadataSizeInBytes() const{ return KLB_METADATA_SIZE; };
+	size_t calculateNumBlocks() const;
+	size_t getSizeInBytes()  const{ return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t)) + 2 * sizeof(std::uint8_t) + Nb * sizeof(std::uint64_t) + sizeof(char)* (KLB_METADATA_SIZE + 1); };
+	size_t getSizeInBytesFixPortion()  const{ return KLB_DATA_DIMS * (2 * sizeof(std::uint32_t) + sizeof(float32_t)) + 2 * sizeof(std::uint8_t) + sizeof(char)* (KLB_METADATA_SIZE + 1); };
+	size_t getBytesPerPixel() const;
+	std::uint32_t getBlockSizeBytes() const;
+	std::uint64_t getImageSizeBytes() const;
+	std::uint64_t getImageSizePixels() const;
+	size_t getBlockCompressedSizeBytes(size_t blockId) const;
+	std::uint64_t getBlockOffset(size_t blockIdx) const;//offset in compressed file without counting header (so you have to add getSizeInBytes() for total offset
+	std::uint64_t getCompressedFileSizeInBytes() const;
 	void setDefaultBlockSize();//sets default block size based on our analysis for our own images
 	void resizeBlockOffset(size_t Nb_);
+	void setOptimalBlockSizeInBytes(){ optimalBlockSizeInBytes[0] = 192; optimalBlockSizeInBytes[0] = 192; optimalBlockSizeInBytes[0] = 16; optimalBlockSizeInBytes[0] = 1; optimalBlockSizeInBytes[0] = 1; };
+	
+	void setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], const  std::uint8_t dataType_, const  float32_t pixelSize_[KLB_DATA_DIMS] = NULL, const std::uint32_t blockSize_[KLB_DATA_DIMS] = NULL, 
+					const std::uint8_t compressionType_ = KLB_COMPRESSION_TYPE::BZIP2, const  char metadata_[KLB_METADATA_SIZE] = NULL, const  std::uint8_t headerVersion_ = KLB_DEFAULT_HEADER_VERSION);
 
 protected:
 

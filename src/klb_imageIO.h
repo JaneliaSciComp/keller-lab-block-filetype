@@ -55,7 +55,7 @@ public:
 
 	//set/get functions
 	std::string getFilename() const{ return filename; };
-	void setFilename(const std::string &filename_){ filename = filename_; };
+	void setFilename(const std::string &filename_){ filename = filename_; };	
 
 	//main functions
 	int readHeader(){ return header.readHeader(filename.c_str()); };
