@@ -1,5 +1,5 @@
 % writeKLBstack save Matlab array (up to 5-dimensional) into  Keller Lab Block file type (.klb) format. 
-% Usage:   writeKLBstack(im, filename, numThreads, pixelSize, blockSize, compressionType) 
+% Usage:   writeKLBstack(im, filename, numThreads, pixelSize, blockSize, compressionType, metadata) 
 % 
 % INPUT (all the optional parameters can be set to [] to use its default value):
 % 

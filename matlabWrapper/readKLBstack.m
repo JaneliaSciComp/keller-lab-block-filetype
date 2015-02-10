@@ -1,5 +1,5 @@
 % readKLBstack Read entire image stack from Keller Lab Block file type (.klb)
-% Usage:    im = readKLBstack(filename, numThreads)
+% Usage:    [im, header] = readKLBstack(filename, numThreads)
 % 
 % INPUT:
 % 
@@ -11,5 +11,7 @@
 % OUTPUT:
 % 
 % im:   Matlab N-dimensional array with the stack content and the appropiate data type
+% 
+% header:  Struct with header file parameters (the same as readKLBheader.m)
     
-function im = readKLBstack(filename, numThreads)
+function [im, header] = readKLBstack(filename, numThreads)

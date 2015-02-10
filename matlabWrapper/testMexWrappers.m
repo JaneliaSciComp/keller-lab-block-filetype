@@ -19,7 +19,7 @@ end
 filename = [tempname '.klb']
 
 %write file
-writeKLBstack(im, filename ,numThreads,pixelSize,blockSize,compressionType);
+writeKLBstack(im, filename ,numThreads,pixelSize,blockSize,compressionType, 'Testing metadata');
 disp('Write file passed...')
 
 %read header

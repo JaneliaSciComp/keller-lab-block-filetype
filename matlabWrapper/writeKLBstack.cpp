@@ -62,6 +62,56 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 		imgIO.header.pixelSize[ii] = 1.0f;;//so users know it was not especified
 	}	
 	
+	//setting data type
+	switch (mxGetClassID(prhs[0]))
+	{
+	case mxUINT8_CLASS:
+		imgIO.header.dataType = 0;
+		break;
+
+	case mxUINT16_CLASS:
+		imgIO.header.dataType = 1;
+		break;
+
+	case mxUINT32_CLASS:
+		imgIO.header.dataType = 2;
+		break;
+
+	case mxUINT64_CLASS:
+		imgIO.header.dataType = 3;
+		break;
+
+	case mxINT8_CLASS:
+		imgIO.header.dataType = 4;
+		break;
+
+	case mxINT16_CLASS:
+		imgIO.header.dataType = 5;
+		break;
+
+	case mxINT32_CLASS:
+		imgIO.header.dataType = 6;
+		break;
+
+	case mxINT64_CLASS:
+		imgIO.header.dataType = 7;
+		break;
+
+	case mxSINGLE_CLASS:
+		imgIO.header.dataType = 8;
+		break;
+
+	case mxDOUBLE_CLASS:
+		imgIO.header.dataType = 9;
+		break;
+
+	default:
+		mexErrMsgTxt("Data type not supported");
+	}
+
+	//default block values
+	imgIO.header.setDefaultBlockSize();
+
     // check: only one input and one output argument
     switch( nrhs )
     {
@@ -152,17 +202,20 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
                 if( mxGetClassID(prhs[6]) != mxCHAR_CLASS )
                     mexErrMsgTxt("Metadata has to been a char array");
                                 
-                int charSize = mxGetN(prhs[6]);
 				
-				if (charSize > KLB_METADATA_SIZE)
+				size_t buflen = mxGetN(prhs[6]);
+				
+								
+				if (buflen > KLB_METADATA_SIZE)
 					mexErrMsgTxt("Metadata cannot contain more than KLB_METADATA_SIZE bytes");
-                
-				mwSize strlen;
-				int errM = mxGetString(prhs[6], imgIO.header.metadata, strlen);
+                								
+				char* str = mxArrayToString(prhs[6]);				
 
-				if (errM != 0)
+				if (str == NULL)
 					mexErrMsgTxt("Error converting metadata");
-                
+				else
+					memcpy(imgIO.header.metadata, str, sizeof(char)* strlen(str));
+					mxFree(str);
             }
             break;
         default:
@@ -176,52 +229,7 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	for (int ii = 0; ii < ndims; ii++)
 		imgIO.header.xyzct[ii] = dims[ii];
 
-    //setting data type
-	switch (mxGetClassID(prhs[0]))
-	{
-	case mxUINT8_CLASS:
-			imgIO.header.dataType = 0;
-		break;
-
-	case mxUINT16_CLASS:
-			imgIO.header.dataType = 1;
-			break;
-
-	case mxUINT32_CLASS:
-			imgIO.header.dataType = 2;
-			break;
-
-	case mxUINT64_CLASS:
-			imgIO.header.dataType = 3;
-			break;
-
-	case mxINT8_CLASS:
-			imgIO.header.dataType = 4;
-			break;
-
-	case mxINT16_CLASS:
-			imgIO.header.dataType = 5;
-			break;
-
-	case mxINT32_CLASS:
-			imgIO.header.dataType = 6;
-			break;
-
-	case mxINT64_CLASS:
-			imgIO.header.dataType = 7;
-			break;
-
-	case mxSINGLE_CLASS:
-			imgIO.header.dataType = 8;
-			break;
-
-	case mxDOUBLE_CLASS:
-			imgIO.header.dataType = 9;
-			break;
-
-		default:
-			mexErrMsgTxt("Data type not supported");
-	}
+    
   	 
     if (mxIsEmpty(prhs[4]) == true)
         imgIO.header.setDefaultBlockSize();

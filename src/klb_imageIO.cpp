@@ -782,6 +782,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 #ifdef USE_MEM_BUFFER_WRITE
 	//buffer to avoid writing to disk all the time
 	int bufferMaxSize = std::min( header.getImageSizeBytes() / 10, (uint64_t) (500 * 1048576));//maximum is 500MB or 10th of the original image size
+	bufferMaxSize = std::max(bufferMaxSize, (int) maximumBlockSizeCompressedInBytes());//we need ot be able to fit at least one block
 	char* bufferMem = new char[bufferMaxSize];
 	int bufferOffset = 0;
 #endif	
@@ -822,7 +823,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 		blockSize = g_blockSize[nextBlockId];
 
 #ifdef USE_MEM_BUFFER_WRITE
-		//use memory large memory buffer
+		//use large memory buffer
 		if (bufferOffset + blockSize > bufferMaxSize)//we need to flush the buffer
 		{
 			fwrite(bufferMem, 1, bufferOffset, fout);
