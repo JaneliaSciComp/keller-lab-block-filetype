@@ -1,5 +1,5 @@
 /*
-*  readKLBslice.cpp
+*  readKLBroi.cpp
 *
 *  Created on: October 13, 2014
 *      Author: Fernando Amat
@@ -9,7 +9,7 @@
 *     See license.txt for full license and copyright notice.
 *     
 *     \brief Set of utilities to read/write KLB format
-*       header = readKLBslice(filename, slice, dim , numThreads)     
+*       patch = readKLBroi(filename, ROI, numThreads)    
 */
 
 
@@ -36,8 +36,8 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	int numThreads = -1;//by default we use all the threads available
     
 	// check: only one input and one output argument
-	if (nrhs < 3)
-		mexErrMsgTxt("Must have three input arguments: filename, slice, dimension");
+	if (nrhs < 2)
+		mexErrMsgTxt("Must have at least two input arguments: filename, ROI");
 	if (nlhs !=1)
 	    mexErrMsgTxt("Must have one output argument");
 	if (mxIsChar(prhs[0]) != 1)
@@ -46,7 +46,7 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 
 	if (nrhs > 3)//set number of threads
 	{
-		if (mxIsEmpty(prhs[3]) == false)
+		if (mxIsEmpty(prhs[2]) == false)
 		{
 			numThreads = (int)(mxGetPr(prhs[3])[0]);
 		}
@@ -56,38 +56,51 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	filename = mxArrayToString(prhs[0]);
 	string filenameOut(filename);
 	
-	//read other inputs
-	int slice = ((int)(mxGetPr(prhs[1])[0])) - 1;//C-indexing
-	int dimSlice = ((int)(mxGetPr(prhs[2])[0])) - 1;//C-indexing
-
-	if (dimSlice >= 3 || dimSlice < 0)
-		mexErrMsgTxt("Code only ready for slices in X, Y or Z. So dimSlice has to be 1, 2 or 3");
+    
+	//read other inputs	
+	size_t nrows = mxGetM(prhs[1]);
+    size_t ncols = mxGetN(prhs[1]);
 	
+    if( nrows != 2 )
+        mexErrMsgTxt("ROI needs to have two rows for lower bound and upper bound coordinates");
+    
+    if( ncols < 1 || ncols > KLB_DATA_DIMS)
+        mexErrMsgTxt("ROI cannot have more than KLB_DATA_DIMS columns");
+    
+    
+    double* ROIptr = mxGetPr(prhs[1]);
+
+	//define region of interest
+	klb_ROI ROIfull;
+	int idx = 0;
+	for (size_t ii = 0; ii < ncols; ii++)
+	{
+		ROIfull.xyzctLB[ii] = ROIptr[idx++] - 1.0;//C_indexing
+		ROIfull.xyzctUB[ii] = ROIptr[idx++] - 1.0;
+	}
+
+	//set the rest by default
+	for (int ii = ncols; ii < KLB_DATA_DIMS; ii++)
+	{
+		ROIfull.xyzctLB[ii] = 0;
+		ROIfull.xyzctUB[ii] = 0;
+	}    
+    
+    
 	//read header
 	klb_imageIO imgFull(filenameOut);
 	int error = imgFull.readHeader();
 	if (error > 0)
 		mexErrMsgTxt("Error reading the image");
-
-	//define region of interest
-	klb_ROI ROIfull;
-	ROIfull.defineSlice(slice, dimSlice, imgFull.header.xyzct);
+	
 
 	//set dimensionality of the slice
-	mwSize ndims = 2;
-	mwSize dims[2];
-
-	int count = 0;
-	for (int ii = 0; ii < 3; ii++)
-	{
-		if (ii == dimSlice)
-			continue;
-		dims[count++] = imgFull.header.xyzct[ii];
+	mwSize dims[KLB_DATA_DIMS];
+	int ndims = ncols;
+	for (int ii = 0; ii < ndims; ii++)
+	{		
+		dims[ii] = ROIfull.getSizePixels(ii);
 	}
-	
-		
-
-
 	
 		
 
@@ -142,6 +155,8 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	error = imgFull.readImage((char*)(mxGetData(plhs[0])), &ROIfull, numThreads);
 	if (error > 0)
 		mexErrMsgTxt("Error reading the image slice");
+
+     
 
 	//release memory	
     mxFree(filename);

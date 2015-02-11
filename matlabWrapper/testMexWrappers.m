@@ -19,6 +19,11 @@ end
 filename = [tempname '.klb']
 
 %write file
+writeKLBstack(im, filename );
+writeKLBstack(im, filename ,numThreads);
+writeKLBstack(im, filename ,numThreads,pixelSize);
+writeKLBstack(im, filename ,numThreads,pixelSize,blockSize);
+writeKLBstack(im, filename ,numThreads,pixelSize,blockSize,compressionType);
 writeKLBstack(im, filename ,numThreads,pixelSize,blockSize,compressionType, 'Testing metadata');
 disp('Write file passed...')
 
@@ -67,3 +72,16 @@ for dim=1:3
 end
 
 disp('Read XY, XZ, and YZ planes passed...')
+
+%read ROI
+ROI = [11 12 15;...
+        20 31 22]
+
+patch = readKLBroi(filename, ROI);
+qq = im(ROI(1,1):ROI(2,1),ROI(1,2):ROI(2,2),ROI(1,3):ROI(2,3));
+
+if( max(abs(single(patch(:)-qq(:)))) == 0 )
+    disp('Read KLB ROI passed...')
+else
+    disp('ERROR in read KLB ROI')
+end

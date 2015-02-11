@@ -6,7 +6,7 @@
 *
 
 *     Copyright (C) 2014 by  Fernando Amat
-*     See licenseGMEM.txt for full license and copyright notice.
+*     See license.txt for full license and copyright notice.
 *     
 *     \brief Set of utilities to read/write KLB format
 *       im = readKLBstack(filename, numThreads)     

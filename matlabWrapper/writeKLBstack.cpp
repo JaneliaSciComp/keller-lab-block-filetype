@@ -6,7 +6,7 @@
 *
 
 *     Copyright (C) 2014 by  Fernando Amat
-*     See licenseGMEM.txt for full license and copyright notice.
+*     See license.txt for full license and copyright notice.
 *     
 *     \brief Set of utilities to read/write KLB format
 *       writeKLBstack(im, filenameOut, numThreads, pixelSize, blockSize, compressionType, metadata)     
@@ -111,6 +111,7 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 
 	//default block values
 	imgIO.header.setDefaultBlockSize();
+	imgIO.header.compressionType = KLB_COMPRESSION_TYPE::BZIP2;//bzip2 by default
 
     // check: only one input and one output argument
     switch( nrhs )
@@ -230,13 +231,6 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 		imgIO.header.xyzct[ii] = dims[ii];
 
     
-  	 
-    if (mxIsEmpty(prhs[4]) == true)
-        imgIO.header.setDefaultBlockSize();
-    
-    if (mxIsEmpty(prhs[5]) == true)
-        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::BZIP2;//bzip2 by default
-
     
 	error = imgIO.writeImage((char*)(mxGetData(prhs[0])), numThreads);//all the threads available
 	if (error > 0)
