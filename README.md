@@ -11,6 +11,7 @@ The KLB header contains the following items stored in binary format:
 
 
 
+- uint8		headerVersion: indicates header version in case it is modified in the future
 
 - uint32	xyzct[5]: image dimensions (x, y, z, channels, time points)
 
@@ -19,6 +20,8 @@ The KLB header contains the following items stored in binary format:
 - uint8 dataType: look-up-table for data type (uint8, uint16, etc.)
 
 - uint8 compressionType: look-up-table for compression type (none, pbzip2, etc.)
+
+- char	metadata[256]: wildcard to store any extra information needed for different applications
 
 - uint32	blockSize[5]: block size used to partition the data in each dimension
 
