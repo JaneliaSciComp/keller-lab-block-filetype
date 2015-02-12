@@ -240,8 +240,11 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
             case 2:
                 mexErrMsgTxt("Error during BZIP compression of one of the blocks");
                 break;
+			case 5:
+				mexErrMsgTxt("Error generating the output file in the specified location");
+				break;
             default:
-                mexErrMsgTxt("Error reading and decompresing the image");
+                mexErrMsgTxt("Error writing the image");
         }
     }
 	//release memory	

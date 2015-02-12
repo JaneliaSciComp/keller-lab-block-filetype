@@ -770,7 +770,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 
 //=========================================================================
 //writes compressed blocks sequentially as they become available (in order) from the workers
-void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag)
+void klb_imageIO::blockWriter(FILE* fout, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag)
 {
 	*errFlag = 0;
 	std::int64_t nextBlockId = 0, offset = 0;
@@ -785,17 +785,7 @@ void klb_imageIO::blockWriter(std::string filenameOut, int* g_blockSize, int* g_
 	bufferMaxSize = std::max(bufferMaxSize, (int) maximumBlockSizeCompressedInBytes());//we need ot be able to fit at least one block
 	char* bufferMem = new char[bufferMaxSize];
 	int bufferOffset = 0;
-#endif	
-
-	//open output file
-	//std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);	
-	FILE* fout = fopen(filenameOut.c_str(), "wb");//for wahtever reason FILE* is 4X faster than std::ofstream over the network. C interface is much faster than C++ streams
-	if ( fout == NULL )
-	{
-		std::cout << "ERROR: file " << filenameOut << " could not be opened" << std::endl;
-		nextBlockId = numBlocks;
-		*errFlag = 5;
-	}
+#endif		
 
 	//write header
 	header.writeHeader(fout);	
@@ -896,6 +886,16 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	if (numThreads <= 0)//use maximum available
 		numThreads = std::thread::hardware_concurrency();
 
+	//open output file
+	//std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);	
+	//we do this before calling the thread in case we have problems
+	FILE* fout = fopen(filename.c_str(), "wb");//for wahtever reason FILE* is 4X faster than std::ofstream over the network. C interface is much faster than C++ streams
+	if (fout == NULL)
+	{
+		std::cout << "ERROR: file " << filename << " could not be opened" << std::endl;
+		return 5;
+	}
+
 
 #ifdef PROFILE_COMPRESSION
 	//reset counter
@@ -939,9 +939,10 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 	for (int ii = 0; ii < numThreads; ii++)
 		cq[ii] = new klb_circular_dequeue(maxBlockSizeBytesCompressed, numBlocskPerQueue);
 
+
 	// start the thread to write
 	int errFlagW = 0;
-	std::thread writerthread(&klb_imageIO::blockWriter, this, filename, g_blockSize, g_blockThreadId, cq, &errFlagW);
+	std::thread writerthread(&klb_imageIO::blockWriter, this, fout, g_blockSize, g_blockThreadId, cq, &errFlagW);
 
 	// start the working threads
 	std::vector<std::thread> threads;

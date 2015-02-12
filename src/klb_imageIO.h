@@ -95,7 +95,7 @@ private:
 	
 	
 	//functions to call for each thread
-	void blockWriter(std::string filenameOut, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag);
+	void blockWriter(FILE* fout, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag);
 	void blockCompressor(const char* buffer, int* g_blockSize, std::atomic<uint64_t> *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
 
 	void blockUncompressor(char* bufferOut, std::atomic<uint64_t> *blockId, const klb_ROI* ROI, int* errFlag);

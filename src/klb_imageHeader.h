@@ -102,8 +102,14 @@ public:
 	std::uint64_t getCompressedFileSizeInBytes() const;
 	void setDefaultBlockSize();//sets default block size based on our analysis for our own images
 	void resizeBlockOffset(size_t Nb_);
-	void setOptimalBlockSizeInBytes(){ optimalBlockSizeInBytes[0] = 192; optimalBlockSizeInBytes[0] = 192; optimalBlockSizeInBytes[0] = 16; optimalBlockSizeInBytes[0] = 1; optimalBlockSizeInBytes[0] = 1; };
+	void setOptimalBlockSizeInBytes(){ optimalBlockSizeInBytes[0] = 192; optimalBlockSizeInBytes[1] = 192; optimalBlockSizeInBytes[2] = 16; optimalBlockSizeInBytes[3] = 1; optimalBlockSizeInBytes[4] = 1; };
 	
+
+	char* getMetadataPtr() { return metadata; };
+	char* cloneMetadata() const{
+		char* p = new char[KLB_METADATA_SIZE]; memcpy(p, metadata, sizeof(char)* KLB_METADATA_SIZE); return p;};
+	void setMetadata(char BYTE[KLB_METADATA_SIZE]){ memcpy(metadata, BYTE, KLB_METADATA_SIZE * sizeof(char)); };
+
 	void setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], const  std::uint8_t dataType_, const  float32_t pixelSize_[KLB_DATA_DIMS] = NULL, const std::uint32_t blockSize_[KLB_DATA_DIMS] = NULL, 
 					const std::uint8_t compressionType_ = KLB_COMPRESSION_TYPE::BZIP2, const  char metadata_[KLB_METADATA_SIZE] = NULL, const  std::uint8_t headerVersion_ = KLB_DEFAULT_HEADER_VERSION);
 
