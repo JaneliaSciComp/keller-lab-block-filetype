@@ -14,24 +14,30 @@ file(GLOB KLB_HDRS ${PROJECT_SOURCE_DIR}/*.h)
 
 
 #main library 
+IF(NOT TARGET klblib)
 ADD_LIBRARY(klblib ${KLB_SRCS} ${KLB_HDRS})
 target_link_libraries (klblib bz2lib )
+ENDIF()
 
 #main shared library (DLL)
+IF(NOT TARGET klblibs)
 ADD_LIBRARY(klblibs SHARED ${KLB_SRCS} ${KLB_HDRS})
 target_link_libraries (klblibs bz2lib )
 set_property(TARGET klblibs PROPERTY COMPILE_DEFINITIONS COMPILE_SHARED_LIBRARY)
 set_property(TARGET klblibs PROPERTY OUTPUT_NAME klb)
-
+ENDIF()
 
 #executable to test klblib library for I/O purposes
+IF(NOT TARGET test_klbIO)
 ADD_EXECUTABLE(test_klbIO mainTest_klbIO.cxx)
 target_link_libraries (test_klbIO klblib)
+ENDIF()
 
 #executable to test klblib library for speed and size in real data
+IF( NOT TARGET speed_klbIO)
 ADD_EXECUTABLE(speed_klbIO mainTestSpeed_klbIO.cxx)
 target_link_libraries (speed_klbIO klblib)
-
+ENDIF()
 
 IF( CMAKE_COMPILER_IS_GNUCC )
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
@@ -42,9 +48,10 @@ IF( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
 ENDIF()
 
 #small executable to test C++11 std::threads and compare it to pbzip2
+IF( NOT TARGET testPbzip2_Cpp11Threads)
 ADD_EXECUTABLE(testPbzip2_Cpp11Threads testPbzip2_Cpp11Threads.cxx)
 target_link_libraries ( testPbzip2_Cpp11Threads bz2lib )
-
+ENDIF()
 
 option(BINDINGS_JAVA "Build bindings for Java" off)
 if(BINDINGS_JAVA)
