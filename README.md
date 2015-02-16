@@ -5,6 +5,13 @@ The KLB is a file format developed at the Keller Lab at Janelia Research Campus 
 All the code has been developed using standard C++11 which makes it easy to compile across platforms. Moreover, a simple API allows to wrap the open-source C++ code with other languages such as Python, Java, Fiji or Matlab. The KLB format also allows future extensions, such as new compression formats. At the time of writing of this readme file, compressionType supports two file formats, ‘no compression’ and ‘pbzip2’. Thus, if the user wishes to use other types of compression algorithms for different data sets, it is straight-forward to include support for additional algorithms. This modification simply requires an extra line in the source code to indicate the location of the code for the new compression library.
 
 
+## KLB installation and compilation ##
+
+This software package contains all the source-code in C++11 for the KLB format implementation as well as wrappers for Matlab. The folder *bin* contains the precompiled static and shared (dll) libraries for Windows 7 64-bit as well as a simple executable test_KLBIO.exe to test read/write operations. The source code of this executable is a good example on how to use the API for KLB files. For Windows 7 64-bit we also provide precompiled mex files in the *matlabWrapper* folder.
+
+The code has been tested in different Unix systems. However, Linux and Mac OS users need to compile both the source code and the Matlab wrappers to obtain libraries and executables. For the first part a CMake file is setup in the *src* folder. For the second, the folder *matlabWrapper* contains a *compileMex.m* script to generate the mex files. You need to compile the C++11 libraries in Relase mode before compiling the mex files.
+
+
 ## KLB header format ##
 
 The KLB header contains the following items stored in binary format:
