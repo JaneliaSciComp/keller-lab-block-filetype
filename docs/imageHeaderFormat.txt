@@ -1,0 +1,18 @@
+#Variable size header depending on the number of blocks used
+#Total number of bytes = 62 + 8 * Nb
+
+uint8 headerVersion 	//KLB header version
+
+uint32	xyzct[5]	//image dimensions in pixels
+
+float32	pixelSize[5]	//pixel size (in um,au,secs) for each dimension
+
+uint8	datatType	//lookup table for data type (uint8, uint16, etc)
+
+uint8	compressionType //lookup table for compression type (none, bzip2, etc)
+
+char 	metadata[256]	//character block providing space for user-defined metadata
+
+uint32	blockSize[5]	//block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB
+
+uint64	blockOffset[Nb] //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i])

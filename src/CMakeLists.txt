@@ -2,6 +2,9 @@
 project ( imageBlockAPI_project )
 cmake_minimum_required ( VERSION 2.8 )
 
+#folder where all the executables go (this is seens by all elements called using add_subdirectory)
+SET(KLB_BINARY_FOLDER "${PROJECT_SOURCE_DIR}/../bin")
+
 #add bzip2 library
 include_directories ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
@@ -68,3 +71,7 @@ if(BINDINGS_JAVA)
     swig_add_module(klb-jni java klb.i)
     swig_link_libraries(klb-jni klblibs)
 endif()
+
+
+#copy binaries to specific folder for release version
+INSTALL(TARGETS  klblib klblibs test_klbIO DESTINATION "${KLB_BINARY_FOLDER}" CONFIGURATIONS Release)
