@@ -268,7 +268,7 @@ void klb_image_header::setDefaultBlockSize()
 }
 
 //======================================================
-void klb_image_header::setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], const std::uint8_t dataType_, const float32_t pixelSize_[KLB_DATA_DIMS], const std::uint32_t blockSize_[KLB_DATA_DIMS], const std::uint8_t compressionType_, const char metadata_[KLB_METADATA_SIZE], const std::uint8_t headerVersion_)
+void klb_image_header::setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], const KLB_DATA_TYPE dataType_, const float32_t pixelSize_[KLB_DATA_DIMS], const std::uint32_t blockSize_[KLB_DATA_DIMS], const KLB_COMPRESSION_TYPE compressionType_, const char metadata_[KLB_METADATA_SIZE], const std::uint8_t headerVersion_)
 {
 	memcpy(xyzct, xyzct_, sizeof(uint32_t)* KLB_DATA_DIMS);
 	dataType = dataType_;

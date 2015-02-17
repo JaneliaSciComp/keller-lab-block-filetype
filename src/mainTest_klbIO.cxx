@@ -29,7 +29,7 @@ typedef std::chrono::high_resolution_clock Clock;
 int main(int argc, const char** argv)
 {
 	int numThreads = 10;//<= 0 indicates use as many as possible
-	int compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none
+	KLB_COMPRESSION_TYPE compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none
 	std::string filenameOut("E:/compressionFormatData/debugGradient.klb");
 
 
@@ -101,7 +101,7 @@ int main(int argc, const char** argv)
 	imgIO.header.setHeader(xyzct, KLB_DATA_TYPE::UINT16_TYPE, pixelSize_, blockSize, compressionType, metadata_);
 	memcpy(imgIO.header.xyzct, xyzct, sizeof(uint32_t)* KLB_DATA_DIMS);
 	memcpy(imgIO.header.blockSize, blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
-	imgIO.header.dataType = 1;//uint16
+	imgIO.header.dataType = KLB_DATA_TYPE::UINT16_TYPE;//uint16
 	imgIO.header.compressionType = compressionType;
 	
 

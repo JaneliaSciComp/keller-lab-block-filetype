@@ -66,8 +66,8 @@ public:
 	std::uint8_t					headerVersion;		//indicates header version(always the first byte)
 	std::uint32_t					xyzct[KLB_DATA_DIMS];     //image dimensions in pixels
 	float32_t						pixelSize[KLB_DATA_DIMS];     //pixel size (in um,au,secs) for each dimension
-	std::uint8_t					dataType;     //lookup table for data type (uint8, uint16, etc)
-	std::uint8_t					compressionType; //lookup table for compression type (none, pbzip2,etc)
+	KLB_DATA_TYPE					dataType;     //lookup table for data type (uint8, uint16, etc)
+	KLB_COMPRESSION_TYPE			compressionType; //lookup table for compression type (none, pbzip2,etc)
 	char							metadata[KLB_METADATA_SIZE];//wildcard to store any data you want
 	std::uint32_t					blockSize[KLB_DATA_DIMS];     //block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB	
 	std::uint64_t*		blockOffset; //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i]). I use a pointer (instead of vector) to facilitate dllexport to shared library
@@ -108,10 +108,10 @@ public:
 	char* getMetadataPtr() { return metadata; };
 	char* cloneMetadata() const{
 		char* p = new char[KLB_METADATA_SIZE]; memcpy(p, metadata, sizeof(char)* KLB_METADATA_SIZE); return p;};
-	void setMetadata(char BYTE[KLB_METADATA_SIZE]){ memcpy(metadata, BYTE, KLB_METADATA_SIZE * sizeof(char)); };
+	void setMetadata(char meta[KLB_METADATA_SIZE]){ memcpy(metadata, meta, KLB_METADATA_SIZE * sizeof(char)); };
 
-	void setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], const  std::uint8_t dataType_, const  float32_t pixelSize_[KLB_DATA_DIMS] = NULL, const std::uint32_t blockSize_[KLB_DATA_DIMS] = NULL, 
-					const std::uint8_t compressionType_ = KLB_COMPRESSION_TYPE::BZIP2, const  char metadata_[KLB_METADATA_SIZE] = NULL, const  std::uint8_t headerVersion_ = KLB_DEFAULT_HEADER_VERSION);
+	void setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], const  KLB_DATA_TYPE dataType_, const  float32_t pixelSize_[KLB_DATA_DIMS] = NULL, const std::uint32_t blockSize_[KLB_DATA_DIMS] = NULL, 
+					const KLB_COMPRESSION_TYPE compressionType_ = KLB_COMPRESSION_TYPE::BZIP2, const  char metadata_[KLB_METADATA_SIZE] = NULL, const  std::uint8_t headerVersion_ = KLB_DEFAULT_HEADER_VERSION);
 
 protected:
 
