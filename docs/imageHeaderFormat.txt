@@ -1,5 +1,5 @@
 #Variable size header depending on the number of blocks used
-#Total number of bytes = 62 + 8 * Nb
+#Total number of bytes =  319 + 8 * Nb
 
 uint8 headerVersion 	//KLB header version
 
@@ -13,6 +13,6 @@ uint8	compressionType //lookup table for compression type (none, bzip2, etc)
 
 char 	metadata[256]	//character block providing space for user-defined metadata
 
-uint32	blockSize[5]	//block size along each dimension to partition the data for bzip. The total size of each block should be ~1MB
+uint32	blockSize[5]	//block size along each dimension to partition the data for bzip. 
 
 uint64	blockOffset[Nb] //offset (in bytes) within the file for each block, so we can retrieve blocks individually. Nb = prod_i ceil(xyzct[i]/blockSize[i])
