@@ -4,3 +4,4 @@ build
 KLBheaderUpdate
 build_mingw64
 temp
+testCwrapper
