@@ -36,6 +36,11 @@ ADD_EXECUTABLE(test_klbIO mainTest_klbIO.cxx)
 target_link_libraries (test_klbIO klblib)
 ENDIF()
 
+#executable to test klblib library for I/O purposes using C-style code
+IF(NOT TARGET test_klbIO_C)
+ADD_EXECUTABLE(test_klbIO_C mainTest_klbIO.c common.h klb_Cwrapper.h)
+target_link_libraries (test_klbIO_C klblibs)
+ENDIF()
 
 #executable to test klblib library for speed and size in real data
 IF( NOT TARGET speed_klbIO)
@@ -75,4 +80,4 @@ endif()
 
 
 #copy binaries to specific folder for release version
-INSTALL(TARGETS  klblib klblibs test_klbIO DESTINATION "${KLB_BINARY_FOLDER}" CONFIGURATIONS Release)
+INSTALL(TARGETS  klblib klblibs test_klbIO test_klbIO_C DESTINATION "${KLB_BINARY_FOLDER}" CONFIGURATIONS Release)
