@@ -12,6 +12,11 @@ This software package contains all the source-code in C++11 for the KLB format i
 The code has been tested in different Unix systems. However, Linux and Mac OS users need to compile both the source code and the Matlab wrappers to obtain libraries and executables. For the first part a CMake file is setup in the *src* folder. For the second, the folder *matlabWrapper* contains a *compileMex.m* script to generate the mex files. You need to compile the C++11 libraries in Relase mode before compiling the mex files.
 
 
+## Java Native Interface (JNI) ##
+
+The KLB API is exposed on the Java-side through a JNI wrapper, included in the *javaWrapper* subfolder. It can be build with Maven, includes compiled native libraries for Windows and Linux (both 64-bit) and will eventually be available as an artifact on a Maven repository. ImageJ users on supported platforms can simply install KLB support by following the update site at http://sites.imagej.net/SiMView/. Follow these [instructions](http://wiki.imagej.net/How_to_follow_a_3rd_party_update_site) on how to follow an update site. Users on other platforms have to build the native libraries first.
+
+
 ## KLB header format ##
 
 The KLB header contains the following items stored in binary format:

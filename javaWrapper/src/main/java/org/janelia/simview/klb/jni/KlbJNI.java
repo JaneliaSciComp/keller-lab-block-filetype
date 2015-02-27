@@ -85,8 +85,21 @@ public class KlbJNI {
         try {
             loader.unpackAndLoadFromResources("klb");
             loader.unpackAndLoadFromResources("klb-jni");
-        } catch (Exception e) {
-            throw new UnsatisfiedLinkError("[KLB] Failed to unpack native KLB libraries from jar.\n" + e.getMessage());
+        } catch (UnsatisfiedLinkError e1) {
+            try {
+                // If loading klb fails with an UnsatisfiedLinkError,
+                // most likely the OS is Windows and the Visual C++
+                // Redistributable is not installed.
+                // Try again, this time loading the runtime libs first.
+                loader.unpackAndLoadFromResources("msvcr120");
+                loader.unpackAndLoadFromResources("msvcp120");
+                loader.unpackAndLoadFromResources("klb");
+                loader.unpackAndLoadFromResources("klb-jni");
+            } catch (Throwable e2) {
+                throw new UnsatisfiedLinkError("[KLB] Failed to unpack or load native KLB libraries.\n" + e2.getMessage());
+            }
+        } catch (Throwable e3) {
+            throw new UnsatisfiedLinkError("[KLB] Failed to unpack or load native KLB libraries.\n" + e3.getMessage());
         }
     }
 

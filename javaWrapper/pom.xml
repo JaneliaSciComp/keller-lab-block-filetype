@@ -6,7 +6,7 @@
 
     <groupId>org.janelia.simview</groupId>
     <artifactId>klb</artifactId>
-    <version>0.2</version>
+    <version>0.2.1</version>
     <packaging>jar</packaging>
 
     <name>Keller Lab Block file type (.klb) - JNI Library</name>
