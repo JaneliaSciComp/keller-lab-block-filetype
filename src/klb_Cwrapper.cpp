@@ -46,5 +46,5 @@ int writeKLBstack(const void* im, const char* filename, uint32_t xyzct[KLB_DATA_
 	}
 	
 
-	return 0;
+	return error;
 }
