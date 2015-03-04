@@ -139,6 +139,40 @@ int main(int argc, const char** argv)
 
 
 	//=======================================================================
+	//read full image
+	printf("Reading full image\n");
+	uint16_t* imRead;
+
+	start = clock() / (CLOCKS_PER_SEC / 1000);
+	imRead = (uint16_t*)readKLBstack(filenameAux, xyzctR, &dataTypeR, -1, NULL, NULL, NULL, NULL);
+	end = clock() / (CLOCKS_PER_SEC / 1000);	
+	if (imRead == NULL || dataTypeR != 1)
+	{
+		printf("ERROR: reading file\n");
+	}
+
+	//compare elements
+	uint64_t N = 1;
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		N *= xyzctR[ii];
+	int isEqual = 1;
+	uint16_t* imPtr = (uint16_t*)im;
+	for (uint64_t ii = 0; ii < N; ii++)
+	{
+		if (imRead[ii] != imPtr[ii])
+		{
+			isEqual = 0;
+			break;
+		}
+	}
+	if (!isEqual)
+		printf("ERROR!!!: images are different\n");
+	else
+		printf("Reading completed successfully in %ld ms\n", end-start);
+	free(imRead);
+
+
+	//=======================================================================
 	//release memory
 	free(im);
 

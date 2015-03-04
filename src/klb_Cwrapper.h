@@ -46,6 +46,21 @@ extern "C" {  // only need to export C interface if
 
 	DECLSPECIFIER int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t *compressionType, char metadata[KLB_METADATA_SIZE]);
 
+	/*
+	\brief use dataType in order to know how to cast the returned pointer with the image content. 
+
+	Returns NULL if there was an issue
+
+	All the parameters after numThreads (included) are optional
+	*/
+	DECLSPECIFIER void* readKLBstack(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, int numThreads, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t *compressionType, char metadata[KLB_METADATA_SIZE]);
+
+
+	/*
+	\brief read image when you have already allocated memory and you want to reuse it (it could be good to read a time series where images are always the same size). You can use readKLBheader to extract all the metadata
+	*/
+	DECLSPECIFIER int readKLBstackInPlace(const char* filename, void* im, uint8_t *dataType, int numThreads);
+
 #ifdef __cplusplus
 } 
 #endif

@@ -107,3 +107,68 @@ int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *
 
 	return error;
 }
+
+
+//===========================================================================================
+void* readKLBstack(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, uint8_t *compressionType = NULL, char metadata[KLB_METADATA_SIZE] = NULL)
+{
+	void* im = NULL;
+
+	std::string filenameOut(filename);
+
+	klb_imageIO imgFull(filenameOut);
+
+	int err = imgFull.readHeader();
+	if (err > 0)
+		return im;
+
+	uint64_t N = imgFull.header.getImageSizeBytes();
+	im = malloc(N);
+
+	err = imgFull.readImageFull((char*)im, numThreads);
+	if (err > 0)
+	{
+		free(im);
+		return NULL;
+	}
+
+	//parse the rest of the header
+	memcpy(xyzct, imgFull.header.xyzct, sizeof(uint32_t)* KLB_DATA_DIMS);
+
+	*dataType = imgFull.header.dataType;
+	if ( compressionType != NULL )
+		*compressionType = imgFull.header.compressionType;
+
+	if ( pixelSize != NULL)
+		memcpy(pixelSize, imgFull.header.pixelSize, sizeof(float32_t)* KLB_DATA_DIMS);
+
+	if ( metadata != NULL)
+		memcpy(metadata, imgFull.header.metadata, sizeof(char)* KLB_METADATA_SIZE);
+
+	if ( blockSize != NULL)
+		memcpy(blockSize, imgFull.header.blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
+
+	return im;
+}
+
+//===========================================================================================
+int readKLBstackInPlace(const char* filename, void* im, uint8_t *dataType, int numThreads)
+{
+	std::string filenameOut(filename);
+
+	klb_imageIO imgFull(filenameOut);
+
+	int err = imgFull.readHeader();
+	if (err > 0)
+		return err;
+
+	*dataType = imgFull.header.dataType;	
+
+	err = imgFull.readImageFull((char*)im, numThreads);
+	if (err > 0)
+	{
+		return err;
+	}
+
+	return err;
+}
