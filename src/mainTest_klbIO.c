@@ -17,6 +17,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>  
+#include <time.h>
 #include "klb_Cwrapper.h"
 
 
@@ -26,8 +27,8 @@ int main(int argc, const char** argv)
 	int numThreads = 10;//<= 0 indicates use as many as possible
 	int compressionType = 1;//1->bzip2; 0->none
 	
-	char filenameOut[256] = "C:/Users/Fernando/temp/debugKLB";
-	uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 5, 1, 1 };//137 total Z planes
+	char filenameOut[256] = "C:/Users/Fernando/cppProjects/imageBlockAPI/testData/img";
+	uint32_t	xyzct[KLB_DATA_DIMS] = { 101, 151, 29, 1, 1 };//137 total Z planes
 	uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
 	char metadata_[KLB_METADATA_SIZE];
 	uint8_t dataType = 1;
@@ -82,9 +83,42 @@ int main(int argc, const char** argv)
 
 	
 	//write image
+	clock_t start = clock() / (CLOCKS_PER_SEC / 1000);
 	int err = writeKLBstack(im, filenameAux, xyzct, dataType, numThreads, NULL, blockSize, compressionType, metadata_);
+	clock_t end = clock() / (CLOCKS_PER_SEC / 1000);
+	printf("Took %ld ms\n", end-start);
+
+	//----------------------------------------------------------
+	//write image using double pointer
+	const size_t numSlices = xyzct[2];
+	const size_t sliceSizeBytes = xyzct[0] * xyzct[1] * sizeof(uint16_t);
+	size_t offsetSlice = 0;
+	char** imSlice = (char**)malloc(numSlices * sizeof(char*));
+	const char *imAux = (char*)im;
+	for (size_t ii = 0; ii < numSlices; ii++)
+	{
+		imSlice[ii] = (char*)malloc(sliceSizeBytes * sizeof(char));
+		memcpy(imSlice[ii], &(imAux[offsetSlice]), sliceSizeBytes);
+		offsetSlice += sliceSizeBytes;
+	}
+	//compress file
+	char filenameSlices[512];
+	sprintf(filenameSlices, "%s_stackSlice.klb", filenameOut);
+	printf("Compressing file to %s using double pointer\n", filenameSlices);
 	
+	start = clock() / (CLOCKS_PER_SEC / 1000);	
+	err = writeKLBstackSlices((void**)imSlice, filenameSlices, xyzct, dataType, numThreads, NULL, blockSize, compressionType, metadata_);
+
+	end = clock() / (CLOCKS_PER_SEC / 1000);
+	printf("Took %ld ms\n", end-start);
+	//release memory
+	for (size_t ii = 0; ii < numSlices; ii++)
+		free(imSlice[ii]);
+	free(imSlice);
+
 	
+
+	//=======================================================================
 	//release memory
 	free(im);
 

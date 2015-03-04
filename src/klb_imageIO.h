@@ -70,6 +70,10 @@ public:
 	*/
 	int writeImage(const char* BYTE, int numThreads);
 
+	/*
+	\brief Special case to write 3D stacks using double pointer (one pointer per 2D XY slice in the image)
+	*/
+	int writeImageStackSlices(const char** BYTE, int numThreads);
 
 	/*
 	\brief	Main function to read an image (or part of an image defined by ROI).We assume the correct header has been set prior to calling this function. 
@@ -97,6 +101,7 @@ private:
 	//functions to call for each thread
 	void blockWriter(FILE* fout, int* g_blockSize, int* g_blockThreadId, klb_circular_dequeue** cq, int* errFlag);
 	void blockCompressor(const char* buffer, int* g_blockSize, std::atomic<uint64_t> *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
+	void blockCompressorStackSlices(const char** buffer, int* g_blockSize, std::atomic<uint64_t> *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag);
 
 	void blockUncompressor(char* bufferOut, std::atomic<uint64_t> *blockId, const klb_ROI* ROI, int* errFlag);
 	void blockUncompressorImageFull(char* bufferOut, std::atomic<uint64_t> *blockId, int* errFlag);

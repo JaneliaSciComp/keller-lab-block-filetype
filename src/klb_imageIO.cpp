@@ -22,6 +22,7 @@
 #include <mutex>
 #include <chrono>
 #include <stdlib.h>     /* div, div_t */
+#include <cstring>
 #include "klb_imageIO.h"
 #include "bzlib.h"
 
@@ -234,7 +235,205 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 	delete[] bufferIn;
 
 }
+//======================================================
+//this is special case: I know buffer is 3D data. buffer[ii] is the ii-th 2D slice
+void klb_imageIO::blockCompressorStackSlices(const char** buffer, int* g_blockSize, std::atomic<uint64_t> *blockId, int* g_blockThreadId, klb_circular_dequeue* cq, int threadId, int* errFlag)
+{
 
+	const int dataDims = 3;//this is special case: I know buffer is 3D data. buffer[ii] is the ii-th 2D slice
+
+	*errFlag = 0;
+	int BWTblockSize = 9;//maximum compression
+	std::uint64_t blockId_t;
+	int gcount;//read bytes
+	unsigned int sizeCompressed;//size of block in bytes after compression
+
+	const size_t bytesPerPixel = header.getBytesPerPixel();
+	uint32_t blockSizeBytes = bytesPerPixel;
+	uint32_t maxBlockSizeBytesCompressed = maximumBlockSizeCompressedInBytes();
+	uint64_t fLength = bytesPerPixel;
+	uint64_t dimsBlock[dataDims];//number of blocks on each dimension
+	uint64_t coordBlock[dataDims];//coordinates (in block space). blockId_t = coordBblock[0] + dimsBblock[0] * coordBlock[1] + dimsBblock[0] * dimsBblock[1] * coordBlock[2] + ...
+	uint64_t offsetBuffer;//starting offset for each buffer
+	uint64_t offsetZ, offsetSlice;//starting offset in terms of Z + slice
+	uint32_t blockSizeAux[dataDims];//for border cases where the blocksize might be different
+	uint64_t xyzctCum[dataDims];//to calculate offsets for each dimension
+
+	xyzctCum[0] = bytesPerPixel;
+	for (int ii = 0; ii < dataDims; ii++)
+	{
+		blockSizeBytes *= header.blockSize[ii];
+		fLength *= header.xyzct[ii];
+		dimsBlock[ii] = ceil((float)(header.xyzct[ii]) / (float)(header.blockSize[ii]));
+		if (ii > 0)
+			xyzctCum[ii] = xyzctCum[ii - 1] * header.xyzct[ii - 1];
+	}
+	char* bufferIn = new char[blockSizeBytes];
+
+	BWTblockSize = std::min(BWTblockSize, iDivUp((int)blockSizeBytes, (int)100000));//packages of 100,000 bytes
+
+
+
+	std::uint64_t numBlocks = header.getNumBlocks();
+	const std::uint64_t sliceSizeBytes = header.xyzct[0] * header.xyzct[1] * bytesPerPixel;
+
+
+	//main loop to keep processing blocks while they are available
+	while (1)
+	{
+		blockId_t = atomic_fetch_add(blockId, (uint64_t)1);
+
+		//check if we can access data or we cannot read longer
+		if (blockId_t >= numBlocks)
+			break;
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d reading block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+		//-------------------read block-----------------------------------
+
+		//calculate coordinate (in block space)
+		std::uint64_t blockIdx_aux = blockId_t;
+		for (int ii = 0; ii < dataDims; ii++)
+		{
+			coordBlock[ii] = blockIdx_aux % dimsBlock[ii];
+			blockIdx_aux -= coordBlock[ii];
+			blockIdx_aux /= dimsBlock[ii];
+			coordBlock[ii] *= header.blockSize[ii];//parsing coordinates to image space (not block anymore)
+		}
+
+		//make sure it is not a border block
+		gcount = bytesPerPixel;
+		for (int ii = 0; ii < dataDims; ii++)
+		{
+			blockSizeAux[ii] = std::min(header.blockSize[ii], (uint32_t)(header.xyzct[ii] - coordBlock[ii]));
+			gcount *= blockSizeAux[ii];
+		}
+
+		//calculate starting offset in the buffer
+		offsetBuffer = 0;
+		for (int ii = 0; ii < dataDims; ii++)
+		{
+			offsetBuffer += coordBlock[ii] * xyzctCum[ii];
+		}
+
+		//copy block into local buffer bufferIn		
+		uint32_t bcount[dataDims];//to count elements in the block
+		memset(bcount, 0, sizeof(uint32_t)* dataDims);
+		const size_t  bufferCopySize = bytesPerPixel * blockSizeAux[0];
+		char* bufferInAux = bufferIn;
+		int auxDim = 1;
+		while (auxDim < dataDims)
+		{
+			//copy fastest moving coordinate all at once for efficiency		
+			offsetZ = offsetBuffer / sliceSizeBytes;
+			offsetSlice = offsetBuffer - offsetZ * sliceSizeBytes;
+			memcpy(bufferInAux, &(buffer[offsetZ][offsetSlice]), bufferCopySize);
+			bufferInAux += bufferCopySize;
+
+
+			//increment counter			
+			bcount[1]++;
+			offsetBuffer += xyzctCum[1];//update offset 
+			auxDim = 1;
+			while (bcount[auxDim] == blockSizeAux[auxDim])
+			{
+				offsetBuffer -= bcount[auxDim] * xyzctCum[auxDim];//update buffer
+				bcount[auxDim++] = 0;
+				if (auxDim == dataDims)
+					break;
+				bcount[auxDim]++;
+				offsetBuffer += xyzctCum[auxDim]; //update buffer
+			}
+		}
+
+		//-------------------end of read block-----------------------------------
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 1 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+		//decide address where we write the compressed block output						
+		char* bufferOutPtr = cq->getWriteBlock(); //this operation is thread safe	
+
+
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 2 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+#ifdef PROFILE_COMPRESSION
+		auto t1 = Clock::now();
+#endif
+		//apply compression to block
+		switch (header.compressionType)
+		{
+		case KLB_COMPRESSION_TYPE::NONE://no compression
+			sizeCompressed = gcount;
+			memcpy(bufferOutPtr, bufferIn, sizeCompressed);//fid.gcount():Returns the number of characters extracted by the last unformatted input operation performed on the object
+			break;
+		case KLB_COMPRESSION_TYPE::BZIP2://bzip2
+		{
+											 sizeCompressed = maxBlockSizeBytesCompressed;
+											 // compress the memory buffer (blocksize=9*100k, verbose=0, worklevel=30)				  
+											 int ret = BZ2_bzBuffToBuffCompress(bufferOutPtr, &sizeCompressed, bufferIn, gcount, BWTblockSize, 0, 30);
+											 if (ret != BZ_OK)
+											 {
+												 std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << " with bzip2. Error code " << ret << std::endl;
+												 *errFlag = 2;
+												 sizeCompressed = 0;
+											 }
+											 break;
+		}
+		default:
+			std::cout << "ERROR: workerfunc: compression type not implemented" << std::endl;
+			*errFlag = 5;
+			sizeCompressed = 0;
+		}
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 3 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+#ifdef PROFILE_COMPRESSION
+		auto t2 = Clock::now();
+		long long auxChrono = std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count();//in ms
+		atomic_fetch_add(&g_countCompression, auxChrono);
+#endif
+
+		cq->pushWriteBlock();//notify content is ready in the queue
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d uncompressor block check point 4 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+
+		//signal blockWriter that this block can be writen
+		std::unique_lock<std::mutex> locker(g_lockqueue);//adquires the lock		
+		g_blockSize[blockId_t] = sizeCompressed;//I don't really need the lock to modify this. I only need to singal the condition variable
+		g_blockThreadId[blockId_t] = threadId;
+		locker.unlock();
+
+		g_queuecheck.notify_all();
+
+#ifdef DEBUG_PRINT_THREADS
+		printf("Thread %d finished compressing block %d into %d bytes\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)sizeCompressed);
+		fflush(stdout); // Will now print everything in the stdout buffer
+#endif
+	}
+
+
+	//release memory
+	delete[] bufferIn;
+
+}
 //======================================================
 void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *blockId, const klb_ROI* ROI, int *errFlag)
 {
@@ -980,6 +1179,125 @@ int klb_imageIO::writeImage(const char* img, int numThreads)
 #ifdef PROFILE_COMPRESSION
 	long long auxChrono = atomic_load(&g_countCompression);
 	cout << "Average time spent in compression per thread is =" << auxChrono / numThreads << " ms"<<endl;
+#endif
+
+	return 0;//TODO: catch errors from threads (especially opening file)
+}
+
+//=================================================
+
+int klb_imageIO::writeImageStackSlices(const char** img, int numThreads)
+{
+
+	//redirect standard out
+#ifdef DEBUG_PRINT_THREADS
+	//cout << "Redirecting stdout for klb_imageIO::writeImage" << endl;
+	//freopen("E:/temp/cout_klb_imageIO.txt", "w", stdout);	
+#endif
+
+	if (header.xyzct[3] != 1 || header.xyzct[4] != 1)
+	{
+		printf("Error: number of channels or number of time points must be 1 for this API call\n");
+		return 3;
+	}
+
+	if (numThreads <= 0)//use maximum available
+		numThreads = std::thread::hardware_concurrency();
+
+	//open output file
+	//std::ofstream fout(filenameOut.c_str(), std::ios::binary | std::ios::out);	
+	//we do this before calling the thread in case we have problems
+	FILE* fout = fopen(filename.c_str(), "wb");//for wahtever reason FILE* is 4X faster than std::ofstream over the network. C interface is much faster than C++ streams
+	if (fout == NULL)
+	{
+		std::cout << "ERROR: file " << filename << " could not be opened" << std::endl;
+		return 5;
+	}
+
+
+#ifdef PROFILE_COMPRESSION
+	//reset counter
+	atomic_store(&g_countCompression, 0);
+#endif
+
+	//safety checks to avoid blocksize too large
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		header.blockSize[ii] = std::min(header.blockSize[ii], header.xyzct[ii]);//block size cannot be larger than dimensions
+
+	//set constants
+	const uint32_t blockSizeBytes = header.getBlockSizeBytes();
+	const uint64_t fLength = header.getImageSizeBytes();
+	const std::uint64_t numBlocks = header.calculateNumBlocks();
+
+	header.resizeBlockOffset(numBlocks);
+
+
+	//number of threads should not be highr than number of blocks (in case somebody set block size too large)
+	numThreads = std::min((std::uint64_t) numThreads, numBlocks);
+
+	std::atomic<uint64_t> blockId;//counter shared all workers so each worker thread knows which block to readblockId = 0;
+	atomic_store(&blockId, (uint64_t)0);
+
+	int* g_blockSize = new int[numBlocks];//number of bytes (after compression) to be written. If the block has not been compressed yet, it has a -1 value
+	int* g_blockThreadId = new int[numBlocks];//indicates which thread wrote the nlock so the writer can find the appropoate circular queue
+	for (std::uint64_t ii = 0; ii < numBlocks; ii++)
+	{
+		g_blockSize[ii] = -1;
+		g_blockThreadId[ii] = -1;
+	}
+
+	//generate circular queues to exchange blocks between read write
+	int numBlocskPerQueue = std::max(numThreads, 5);//total memory = numThreads * blockSizeBytes * numBlocksPerQueue so it should be low. Also, not many blocks should be queued in general
+	numBlocskPerQueue = std::min(numBlocskPerQueue, 20);
+	numBlocskPerQueue = std::min(numBlocskPerQueue, (int)iDivUp(numBlocks, (std::uint64_t)numThreads));
+
+	//TODO: find the best method to adjust this number automatically
+	const uint32_t maxBlockSizeBytesCompressed = maximumBlockSizeCompressedInBytes();
+	klb_circular_dequeue** cq = new klb_circular_dequeue*[numThreads];
+	for (int ii = 0; ii < numThreads; ii++)
+		cq[ii] = new klb_circular_dequeue(maxBlockSizeBytesCompressed, numBlocskPerQueue);
+
+
+	// start the thread to write
+	int errFlagW = 0;
+	std::thread writerthread(&klb_imageIO::blockWriter, this, fout, g_blockSize, g_blockThreadId, cq, &errFlagW);
+
+	// start the working threads
+	std::vector<std::thread> threads;
+	std::vector<int> errFlagVec(numThreads, 0);
+	for (int i = 0; i < numThreads; ++i)
+	{
+		threads.push_back(std::thread(&klb_imageIO::blockCompressorStackSlices, this, img, g_blockSize, &blockId, g_blockThreadId, cq[i], i, &(errFlagVec[i])));
+	}
+
+	//wait for the workers to finish
+	for (auto& t : threads)
+	{
+		t.join();
+	}
+
+	//wait for the writer
+	writerthread.join();
+
+	//release memory
+	delete[] g_blockSize;
+	delete[] g_blockThreadId;
+	for (int ii = 0; ii < numThreads; ii++)
+		delete cq[ii];
+	delete[] cq;
+
+	if (errFlagW != 0)
+		return errFlagW;
+	for (int ii = 0; ii < numThreads; ii++)
+	{
+		if (errFlagVec[ii] != 0)
+			return errFlagVec[ii];
+	}
+
+
+#ifdef PROFILE_COMPRESSION
+	long long auxChrono = atomic_load(&g_countCompression);
+	cout << "Average time spent in compression per thread is =" << auxChrono / numThreads << " ms" << endl;
 #endif
 
 	return 0;//TODO: catch errors from threads (especially opening file)

@@ -38,7 +38,11 @@ extern "C" {  // only need to export C interface if
 
 
 	DECLSPECIFIER int writeKLBstack(const void* im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t dataType, int numThreads, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t compressionType, char metadata[KLB_METADATA_SIZE]);
-
+	
+	/*
+	\brief Same as writeKLBstack but we use a double pointer to have each slice in a separate address. xyzct[3] = xyzct[4] = 1 (no time or channel information). We assume xyzct[2] = number of slices
+	*/
+	DECLSPECIFIER int writeKLBstackSlices(const void** im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t dataType, int numThreads, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t compressionType, char metadata[KLB_METADATA_SIZE]);
 
 
 
