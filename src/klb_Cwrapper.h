@@ -61,6 +61,7 @@ extern "C" {  // only need to export C interface if
 	*/
 	DECLSPECIFIER int readKLBstackInPlace(const char* filename, void* im, uint8_t *dataType, int numThreads);
 
+
 #ifdef __cplusplus
 } 
 #endif
