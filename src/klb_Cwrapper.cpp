@@ -83,3 +83,27 @@ int writeKLBstackSlices(const void** im, const char* filename, uint32_t xyzct[KL
 
 	return error;
 }
+
+//===================================================================================
+int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t *compressionType, char metadata[KLB_METADATA_SIZE])
+{
+	std::string filenameOut(filename);
+
+	klb_image_header header;
+	int error = header.readHeader(filename);
+
+	if (error != 0)
+	{
+		return error;
+	}
+
+	//parse header
+	memcpy(xyzct, header.xyzct, sizeof(uint32_t)* KLB_DATA_DIMS);
+	*dataType = header.dataType;	
+	*compressionType = header.compressionType;
+	memcpy(pixelSize, header.pixelSize, sizeof(float32_t)* KLB_DATA_DIMS);
+	memcpy(metadata, header.metadata, sizeof(char)* KLB_METADATA_SIZE);
+	memcpy(blockSize, header.blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
+
+	return error;
+}

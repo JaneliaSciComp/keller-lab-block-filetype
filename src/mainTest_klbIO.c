@@ -117,6 +117,26 @@ int main(int argc, const char** argv)
 	free(imSlice);
 
 	
+	//=====================================================================
+	//read header
+	printf("reading header...\n");
+
+	uint32_t	xyzctR[KLB_DATA_DIMS];
+	uint32_t	blockSizeR[KLB_DATA_DIMS];
+	char metadataR[KLB_METADATA_SIZE];
+	uint8_t dataTypeR, compressionTypeR;
+	float32_t pixelSizeR[KLB_METADATA_SIZE];
+
+
+	err = readKLBheader(filenameAux, xyzctR, &dataTypeR, pixelSizeR, blockSizeR, &compressionTypeR, metadataR);
+
+	printf("Metadata: %s\n", metadataR);
+	printf("Compression type = %d, data type = %d\n", (int)compressionTypeR, (int)dataTypeR);
+	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+	{
+		printf("%d\t%d\t%f\n", (int)(xyzctR[ii]), (int)(blockSizeR[ii]), pixelSizeR[ii]);
+	}
+
 
 	//=======================================================================
 	//release memory

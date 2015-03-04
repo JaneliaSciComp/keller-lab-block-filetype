@@ -49,7 +49,7 @@ public:
 	//constructors 
 	klb_image_header(const klb_image_header& p);
 	~klb_image_header();
-	klb_image_header();
+	klb_image_header();	
 	//operators
 	klb_image_header& operator=(const klb_image_header& p);
 

@@ -44,7 +44,7 @@ extern "C" {  // only need to export C interface if
 	*/
 	DECLSPECIFIER int writeKLBstackSlices(const void** im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t dataType, int numThreads, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t compressionType, char metadata[KLB_METADATA_SIZE]);
 
-
+	DECLSPECIFIER int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t *compressionType, char metadata[KLB_METADATA_SIZE]);
 
 #ifdef __cplusplus
 } 
