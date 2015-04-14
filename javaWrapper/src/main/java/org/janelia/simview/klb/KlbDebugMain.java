@@ -15,7 +15,7 @@ import java.util.List;
 public class KlbDebugMain {
 
     public static void main(final String[] args) throws FormatException, IOException {
-        String filePath = args.length > 0 ? args[0] : "..\\testData\\img.klb";
+        String filePath = args.length > 0 ? args[0] : "../testData/img.klb";
 
         File f = new File(filePath);
         if (!f.exists()) {
@@ -23,13 +23,14 @@ public class KlbDebugMain {
             return;
         }
 
-        System.out.format("Reading KLB image at %s\n", f.getAbsolutePath());
+        System.out.format("Reading image at %s\n", f.getAbsolutePath());
         SCIFIO scifio = new SCIFIO();
         Reader reader = scifio.initializer().initializeReader(f.getAbsolutePath());
+        System.out.format("  format is '%s', implemented by %s\n", reader.getFormatName(), reader.getFormat().getClass().getName());
 
         Metadata meta = reader.getMetadata();
         int numImages = meta.getImageCount();
-        System.out.format("* contains %d images\n", numImages);
+        System.out.format("  contains %d images\n", numImages);
         for (int imageIndex = 0; imageIndex < numImages; ++imageIndex) {
             System.out.format("\nImageIndex %d:\n", imageIndex);
             ImageMetadata iMeta = meta.get(imageIndex);
@@ -50,9 +51,9 @@ public class KlbDebugMain {
                 }
             }
 
-            System.out.println("\nReading image planes:");
+            System.out.println("\n  Reading planes:");
             for (int planeIndex = 0; planeIndex < iMeta.getPlaneCount(); ++planeIndex) {
-                String txt = String.format("  plane %d:", planeIndex);
+                String txt = String.format("    plane %d:", planeIndex);
                 Plane plane = reader.openPlane(imageIndex, planeIndex);
                 byte[] bytes = plane.getBytes();
                 switch (bpp) {
