@@ -7,6 +7,7 @@ import io.scif.util.FormatTools;
 import net.imagej.axis.*;
 import net.imglib2.util.Util;
 import org.janelia.simview.klb.jni.*;
+import org.scijava.Priority;
 import org.scijava.plugin.Plugin;
 
 import java.io.IOException;
@@ -15,7 +16,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
-@Plugin(type = Format.class, name = "Keller Lab Block File Format")
+@Plugin(type = Format.class, priority = Priority.VERY_HIGH_PRIORITY + 1, name = "Keller Lab Block File Format")
 public class KlbScifio extends AbstractFormat {
 
     private static final int NUM_THREADS = Math.max(Runtime.getRuntime().availableProcessors() - 1, 1);
