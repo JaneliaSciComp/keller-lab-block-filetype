@@ -28,7 +28,7 @@ typedef std::chrono::high_resolution_clock Clock;
 
 int main(int argc, const char** argv)
 {
-	int numThreads = 10;//<= 0 indicates use as many as possible
+	int numThreads = -1;//<= 0 indicates use as many as possible
 	int compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none
 	std::string filenameOut("E:/compressionFormatData/debugGradient.klb");
 
@@ -42,9 +42,9 @@ int main(int argc, const char** argv)
 	//std::uint32_t	blockSize[KLB_DATA_DIMS] = {256, 256, 32, 1, 1};
 
 	//medium size
-	//std::uint32_t	xyzct[KLB_DATA_DIMS] = {1620, 737, 132, 1, 1};
-	//std::uint32_t	blockSize[KLB_DATA_DIMS] = {16, 16, 16, 1, 1};
-	//filenameOut = string("E:/compressionFormatData/SPM00_TM000550_CM00_CM01_CHN02_CHN03.fusedStack.MATLAB");
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = {2048, 2048, 439, 1, 1};
+	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 196, 96, 8, 1, 1 };
+	filenameOut = string("G:/temp/SPM00_TM000280_CM01_CHN00");
 
 	//small size for debugging purposes
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 90, 99, 110, 1, 1 };
@@ -57,11 +57,9 @@ int main(int argc, const char** argv)
 
 
 	//drosophila stack masked
-	filenameOut = string("C:/Users/Fernando/temp/debugKLB");
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 5, 1, 1 };//137
-	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
-
-	std::uint32_t	blockSize[KLB_DATA_DIMS] = { 1001, 1701, 3, 1, 1 };
+	//filenameOut = string("C:/Users/Fernando/temp/debugKLB");
+	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 800, 1588, 5, 1, 1 };//137
+	//std::uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };	
 
 	//very small size for debugging purposes (it does not work with bzip2)
 	//std::uint32_t	xyzct[KLB_DATA_DIMS] = { 20, 17, 10, 1, 1 };
