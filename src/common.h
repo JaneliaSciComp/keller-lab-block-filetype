@@ -28,7 +28,8 @@ enum KLB_DATA_TYPE
 enum KLB_COMPRESSION_TYPE
 {
 	NONE = 0,
-	BZIP2 = 1
+	BZIP2 = 1,
+	ZLIB = 2
 };
 
 #endif

@@ -25,6 +25,8 @@
 #include <cstring>
 #include "klb_imageIO.h"
 #include "bzlib.h"
+#include "zlib.h"
+
 
 
 
@@ -52,6 +54,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 	std::uint64_t blockId_t;
 	int gcount;//read bytes
 	unsigned int sizeCompressed;//size of block in bytes after compression
+	
 
 	const size_t bytesPerPixel = header.getBytesPerPixel();
 	uint32_t blockSizeBytes = bytesPerPixel;
@@ -155,7 +158,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 
 
 #ifdef DEBUG_PRINT_THREADS
-		printf("Thread %d uncompressor block check point 1 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		printf("Thread %d compressor block check point 1 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 
@@ -165,7 +168,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 
 
 #ifdef DEBUG_PRINT_THREADS
-		printf("Thread %d uncompressor block check point 2 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		printf("Thread %d compressor block check point 2 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 
@@ -181,16 +184,44 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 			break;
 		case KLB_COMPRESSION_TYPE::BZIP2://bzip2
 		{
-				   sizeCompressed = maxBlockSizeBytesCompressed;
-				   // compress the memory buffer (blocksize=9*100k, verbose=0, worklevel=30)				  
-				   int ret = BZ2_bzBuffToBuffCompress(bufferOutPtr, &sizeCompressed, bufferIn, gcount, BWTblockSize, 0, 30);
-				   if (ret != BZ_OK)
-				   {
-					   std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << " with bzip2. Error code " << ret << std::endl;
-					   *errFlag = 2;
-					   sizeCompressed = 0;
-				   }
-				   break;
+											 sizeCompressed = maxBlockSizeBytesCompressed;
+											 // compress the memory buffer (blocksize=9*100k, verbose=0, worklevel=30)				  
+											 int ret = BZ2_bzBuffToBuffCompress(bufferOutPtr, &sizeCompressed, bufferIn, gcount, BWTblockSize, 0, 30);
+											 if (ret != BZ_OK)
+											 {
+												 std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << " with bzip2. Error code " << ret << std::endl;
+												 *errFlag = 2;
+												 sizeCompressed = 0;
+											 }
+											 break;
+		}
+		case KLB_COMPRESSION_TYPE::ZLIB:
+		{									
+										   z_stream strm;
+										   strm.zalloc = Z_NULL;
+										   strm.zfree = Z_NULL;
+										   strm.opaque = Z_NULL;
+										   //which is an integer in the range of - 1 to 9. Lower compression levels result in faster execution, but less compression.Higher levels result in greater compression, but slower execution.The zlib constant Z_DEFAULT_COMPRESSION, equal to - 1, provides a good compromise between compression and speed and is equivalent to level 6. Level 0 actually does no compression at all
+										   *errFlag = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+										   
+
+										   strm.avail_in = gcount;
+										   strm.next_in = (Bytef*)bufferIn;
+										   strm.avail_out = maxBlockSizeBytesCompressed;
+										   strm.next_out = (Bytef*)bufferOutPtr;
+										   strm.data_type = Z_BINARY;//data type
+										   
+										   int ret = deflate(&strm, Z_FINISH);
+										   sizeCompressed = maxBlockSizeBytesCompressed - strm.avail_out;
+										   if (ret != Z_STREAM_END && ret != Z_OK)
+										   {
+											   std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << " with zlib. Error code " << ret << std::endl;
+											   *errFlag = 3;
+											   sizeCompressed = 0;
+										   }
+										   //release strm
+										   (void)deflateEnd(&strm);
+										   break;
 		}
 		default:
 			std::cout << "ERROR: workerfunc: compression type not implemented" << std::endl;
@@ -199,7 +230,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 		}
 
 #ifdef DEBUG_PRINT_THREADS
-		printf("Thread %d uncompressor block check point 3 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		printf("Thread %d compressor block check point 3 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 
@@ -212,7 +243,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 		cq->pushWriteBlock();//notify content is ready in the queue
 
 #ifdef DEBUG_PRINT_THREADS
-		printf("Thread %d uncompressor block check point 4 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
+		printf("Thread %d compressor block check point 4 for block %d out of %d total blocks\n", (int)(std::this_thread::get_id().hash()), (int)blockId_t, (int)numBlocks);
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 
@@ -229,8 +260,7 @@ void klb_imageIO::blockCompressor(const char* buffer, int* g_blockSize, std::ato
 		fflush(stdout); // Will now print everything in the stdout buffer
 #endif
 	}
-
-
+	
 	//release memory
 	delete[] bufferIn;
 
@@ -391,6 +421,34 @@ void klb_imageIO::blockCompressorStackSlices(const char** buffer, int* g_blockSi
 											 }
 											 break;
 		}
+		case KLB_COMPRESSION_TYPE::ZLIB:
+		{
+										   z_stream strm;
+										   strm.zalloc = Z_NULL;
+										   strm.zfree = Z_NULL;
+										   strm.opaque = Z_NULL;
+										   //which is an integer in the range of - 1 to 9. Lower compression levels result in faster execution, but less compression.Higher levels result in greater compression, but slower execution.The zlib constant Z_DEFAULT_COMPRESSION, equal to - 1, provides a good compromise between compression and speed and is equivalent to level 6. Level 0 actually does no compression at all
+										   *errFlag = deflateInit(&strm, Z_DEFAULT_COMPRESSION);
+
+
+										   strm.avail_in = gcount;
+										   strm.next_in = (Bytef*)bufferIn;
+										   strm.avail_out = maxBlockSizeBytesCompressed;
+										   strm.next_out = (Bytef*)bufferOutPtr;
+										   strm.data_type = Z_BINARY;//data type
+
+										   int ret = deflate(&strm, Z_FINISH);
+										   sizeCompressed = maxBlockSizeBytesCompressed - strm.avail_out;
+										   if (ret != Z_STREAM_END && ret != Z_OK)
+										   {
+											   std::cout << "ERROR: workerfunc: compressing data at block " << blockId_t << " with zlib. Error code " << ret << std::endl;
+											   *errFlag = 3;
+											   sizeCompressed = 0;
+										   }
+										   //release strm
+										   (void)deflateEnd(&strm);
+										   break;
+		}
 		default:
 			std::cout << "ERROR: workerfunc: compression type not implemented" << std::endl;
 			*errFlag = 5;
@@ -541,11 +599,40 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferFile, sizeCompressed, 0, 0);				   
 				   if (ret != BZ_OK)
 				   {
-					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << std::endl;
+					   std::cout << "ERROR: workerfunc: uncompressing data at block " << blockId_t << std::endl;
 					   *errFlag = 2;
 					   gcount = 0;
 				   }
 				   break;
+		}
+		case KLB_COMPRESSION_TYPE::ZLIB:
+		{
+										   z_stream strm;
+										   strm.zalloc = Z_NULL;
+										   strm.zfree = Z_NULL;
+										   strm.opaque = Z_NULL;
+										   strm.avail_in = 0;
+										   strm.next_in = Z_NULL;
+										   *errFlag = inflateInit(&strm);
+
+
+										   strm.avail_out = blockSizeBytes;
+										   strm.next_out = (Bytef*)bufferIn;
+										   strm.avail_in = sizeCompressed;
+										   strm.next_in = (Bytef*)bufferFile;
+										   strm.data_type = Z_BINARY;//data type
+
+										   int ret = inflate(&strm, Z_FINISH);
+										   //gcount = sizeCompressed - strm.avail_out;
+										   if (ret != Z_STREAM_END && ret != Z_OK)
+										   {
+											   std::cout << "ERROR: workerfunc: uncompressing data at block " << blockId_t << " with zlib. Error code " << ret << std::endl;
+											   *errFlag = 3;
+											   gcount = 0;
+										   }
+										   //release strm
+										   (void)deflateEnd(&strm);
+										   break;
 		}
 		default:
 			std::cout << "ERROR: workerfunc: decompression type not implemented" << std::endl;
@@ -732,6 +819,35 @@ void klb_imageIO::blockUncompressorInMem(char* bufferOut, std::atomic<uint64_t>	
 				   }
 				   break;
 		}
+		case KLB_COMPRESSION_TYPE::ZLIB:
+		{
+										   z_stream strm;
+										   strm.zalloc = Z_NULL;
+										   strm.zfree = Z_NULL;
+										   strm.opaque = Z_NULL;
+										   strm.avail_in = 0;
+										   strm.next_in = Z_NULL;
+										   *errFlag = inflateInit(&strm);
+
+
+										   strm.avail_out = blockSizeBytes;
+										   strm.next_out = (Bytef*)bufferIn;
+										   strm.avail_in = sizeCompressed;
+										   strm.next_in = (Bytef*)bufferPtr;
+										   strm.data_type = Z_BINARY;//data type
+
+										   int ret = inflate(&strm, Z_FINISH);
+										   //gcount = sizeCompressed - strm.avail_out;
+										   if (ret != Z_STREAM_END && ret != Z_OK)
+										   {
+											   std::cout << "ERROR: workerfunc: uncompressing data at block " << blockId_t << " with zlib. Error code " << ret << std::endl;
+											   *errFlag = 3;
+											   gcount = 0;
+										   }
+										   //release strm
+										   (void)deflateEnd(&strm);
+										   break;
+		}
 		default:
 			std::cout << "ERROR: workerfunc: decompression type not implemented" << std::endl;
 			*errFlag = 5;
@@ -894,6 +1010,35 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 					   gcount = 0;
 				   }
 				   break;
+		}
+		case KLB_COMPRESSION_TYPE::ZLIB:
+		{
+										   z_stream strm;
+										   strm.zalloc = Z_NULL;
+										   strm.zfree = Z_NULL;
+										   strm.opaque = Z_NULL;
+										   strm.avail_in = 0;
+										   strm.next_in = Z_NULL;
+										   *errFlag = inflateInit(&strm);
+
+
+										   strm.avail_out = blockSizeBytes;
+										   strm.next_out = (Bytef*)bufferIn;
+										   strm.avail_in = sizeCompressed;
+										   strm.next_in = (Bytef*)bufferFile;
+										   strm.data_type = Z_BINARY;//data type
+
+										   int ret = inflate(&strm, Z_FINISH);
+										   //gcount = sizeCompressed - strm.avail_out;
+										   if (ret != Z_STREAM_END && ret != Z_OK)
+										   {
+											   std::cout << "ERROR: workerfunc: uncompressing data at block " << blockId_t << " with zlib. Error code " << ret << std::endl;
+											   *errFlag = 3;
+											   gcount = 0;
+										   }
+										   //release strm
+										   (void)deflateEnd(&strm);
+										   break;
 		}
 		default:
 			std::cout << "ERROR: workerfunc: decompression type not implemented" << std::endl;
@@ -1462,7 +1607,9 @@ std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
 		*/
 		blockSizeBytes = ceil(((float)blockSizeBytes) * 1.05f + 50.0f );
 		break;
-	
+	case KLB_COMPRESSION_TYPE::ZLIB:
+		//nothing to do;		
+		break;
 	default:
 		std::cout << "ERROR: maximumBlockSizeCompressedInBytes: compression type not implemented" << std::endl;
 		blockSizeBytes = 0;
