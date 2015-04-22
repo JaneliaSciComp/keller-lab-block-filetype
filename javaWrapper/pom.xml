@@ -6,7 +6,7 @@
 
     <groupId>org.janelia.simview</groupId>
     <artifactId>klb</artifactId>
-    <version>0.2.2</version>
+    <version>0.2.3-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Keller Lab Block file type (.klb) - JNI Library</name>
@@ -25,12 +25,30 @@
             <artifactId>scifio</artifactId>
             <version>[LATEST,)</version>
         </dependency>
+        <dependency>
+            <groupId>sc.fiji</groupId>
+            <artifactId>bigdataviewer-core</artifactId>
+            <version>[LATEST,)</version>
+        </dependency>
+        <dependency>
+            <groupId>sc.fiji</groupId>
+            <artifactId>SPIM_Registration</artifactId>
+            <version>[LATEST,)</version>
+        </dependency>
     </dependencies>
 
     <repositories>
         <repository>
             <id>ImageJ.Releases</id>
             <url>http://maven.imagej.net/content/repositories/releases</url>
+        </repository>
+        <repository>
+            <id>ImageJ.Public</id>
+            <url>http://maven.imagej.net/content/repositories/public</url>
+        </repository>
+        <repository>
+            <id>ImageJ.3rdParty</id>
+            <url>http://maven.imagej.net/content/repositories/thirdparty</url>
         </repository>
     </repositories>
 
