@@ -6,7 +6,7 @@
 
     <groupId>org.janelia.simview</groupId>
     <artifactId>klb</artifactId>
-    <version>0.2.3-SNAPSHOT</version>
+    <version>0.2.3</version>
     <packaging>jar</packaging>
 
     <name>Keller Lab Block file type (.klb) - JNI Library</name>
@@ -26,6 +26,11 @@
             <version>[LATEST,)</version>
         </dependency>
         <dependency>
+            <groupId>net.imagej</groupId>
+            <artifactId>imagej-common</artifactId>
+            <version>[LATEST,)</version>
+        </dependency>
+        <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>bigdataviewer-core</artifactId>
             <version>[LATEST,)</version>
@@ -33,6 +38,11 @@
         <dependency>
             <groupId>sc.fiji</groupId>
             <artifactId>SPIM_Registration</artifactId>
+            <version>[LATEST,)</version>
+        </dependency>
+        <dependency>
+            <groupId>com.miglayout</groupId>
+            <artifactId>miglayout-swing</artifactId>
             <version>[LATEST,)</version>
         </dependency>
     </dependencies>
