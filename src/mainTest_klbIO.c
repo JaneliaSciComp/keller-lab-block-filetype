@@ -25,7 +25,7 @@
 int main(int argc, const char** argv)
 {
 	int numThreads = 10;//<= 0 indicates use as many as possible
-	int compressionType = 1;//1->bzip2; 0->none
+	int compressionType = 2;//2->zlib;1->bzip2; 0->none
 	
 	char filenameOut[256] = "C:/Users/Fernando/cppProjects/imageBlockAPI/testData/img";
 	uint32_t	xyzct[KLB_DATA_DIMS] = { 101, 151, 29, 1, 1 };//137 total Z planes

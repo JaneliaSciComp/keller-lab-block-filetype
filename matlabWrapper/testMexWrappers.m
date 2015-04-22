@@ -5,7 +5,7 @@ function testMexWrappers(im)
 numThreads = -1;
 pixelSize = [];
 blockSize = [96 96 8];
-compressionType = [];
+compressionType = 2;
 
 
 if( isempty(im) )%generate random image

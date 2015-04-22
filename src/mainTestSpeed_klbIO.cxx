@@ -34,11 +34,11 @@ int main(int argc, const char** argv)
 
 	int numThreads = std::thread::hardware_concurrency();//<= 0 indicates use as many as possible
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
-	int compressionType = 1;//1->bzip2; 0->none (look at enum KLB_COMPRESSION_TYPE)
+	int compressionType = 1;//2->zlib;1->bzip2; 0->none (look at enum KLB_COMPRESSION_TYPE)
 
 
-	std::string basename("D:/compressionFormatData/ZebrafishTM200");
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 1792, 1818, 253, 1, 1 };	
+	std::string basename("E:/temp/mouse_TM000000_angle000");
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 2048, 2048, 335, 1, 1 };	
 	
 	cout << "Testing KLB speed with file " << basename << ".raw and blockSize =";
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
@@ -95,8 +95,7 @@ int main(int argc, const char** argv)
 	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using "<<numThreads<<" threads"<< std::endl;
 
 	delete[] img;
-	
-	return 0;
+		
 
 	//===========================================================================================
 	//===========================================================================================
