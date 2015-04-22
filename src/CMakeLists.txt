@@ -5,6 +5,13 @@ cmake_minimum_required ( VERSION 2.8 )
 #folder where all the executables go (this is seens by all elements called using add_subdirectory)
 SET(KLB_BINARY_FOLDER "${PROJECT_SOURCE_DIR}/../bin")
 
+
+#add fpic for non MSVC compilers
+IF( NOT MSVC )
+    SET(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -fPIC -pthread")
+    SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -pthread")
+ENDIF()
+
 #add bzip2 library
 include_directories ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")

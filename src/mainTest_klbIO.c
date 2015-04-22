@@ -18,6 +18,7 @@
 #include <stdio.h>
 #include <stdlib.h>  
 #include <time.h>
+#include <string.h>
 #include "klb_Cwrapper.h"
 
 
@@ -27,14 +28,14 @@ int main(int argc, const char** argv)
 	int numThreads = 10;//<= 0 indicates use as many as possible
 	int compressionType = 2;//2->zlib;1->bzip2; 0->none
 	
-	char filenameOut[256] = "C:/Users/Fernando/cppProjects/imageBlockAPI/testData/img";
+	char filenameOut[256] = "../testData/img";
 	uint32_t	xyzct[KLB_DATA_DIMS] = { 101, 151, 29, 1, 1 };//137 total Z planes
 	uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
 	char metadata_[KLB_METADATA_SIZE];
 	uint8_t dataType = 1;
 	char filenameAux[256];
 
-	int ii;
+	int64_t ii;
 	FILE* fin;
 	void* im;
 
@@ -95,7 +96,7 @@ int main(int argc, const char** argv)
 	size_t offsetSlice = 0;
 	char** imSlice = (char**)malloc(numSlices * sizeof(char*));
 	const char *imAux = (char*)im;
-	for (size_t ii = 0; ii < numSlices; ii++)
+	for (ii = 0; ii < numSlices; ii++)
 	{
 		imSlice[ii] = (char*)malloc(sliceSizeBytes * sizeof(char));
 		memcpy(imSlice[ii], &(imAux[offsetSlice]), sliceSizeBytes);
@@ -112,7 +113,7 @@ int main(int argc, const char** argv)
 	end = clock() / (CLOCKS_PER_SEC / 1000);
 	printf("Took %ld ms\n", end-start);
 	//release memory
-	for (size_t ii = 0; ii < numSlices; ii++)
+	for (ii = 0; ii < numSlices; ii++)
 		free(imSlice[ii]);
 	free(imSlice);
 
@@ -132,7 +133,7 @@ int main(int argc, const char** argv)
 
 	printf("Metadata: %s\n", metadataR);
 	printf("Compression type = %d, data type = %d\n", (int)compressionTypeR, (int)dataTypeR);
-	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+	for (ii = 0; ii < KLB_DATA_DIMS; ii++)
 	{
 		printf("%d\t%d\t%f\n", (int)(xyzctR[ii]), (int)(blockSizeR[ii]), pixelSizeR[ii]);
 	}
@@ -153,11 +154,11 @@ int main(int argc, const char** argv)
 
 	//compare elements
 	uint64_t N = 1;
-	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+	for (ii = 0; ii < KLB_DATA_DIMS; ii++)
 		N *= xyzctR[ii];
 	int isEqual = 1;
 	uint16_t* imPtr = (uint16_t*)im;
-	for (uint64_t ii = 0; ii < N; ii++)
+	for (ii = 0; ii < N; ii++)
 	{
 		if (imRead[ii] != imPtr[ii])
 		{
