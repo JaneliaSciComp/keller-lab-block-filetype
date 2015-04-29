@@ -7,20 +7,14 @@ import org.janelia.simview.klb.jni.KlbRoi;
  * Defines a dataset consisting of one or multiple KLB files.
  * <p/>
  * Interfaces with Fiji's Big Data Viewer and SPIM plugins through
- * KlbDataset and KlbSpimDataAdapter.
- * KlbDataset uses a KlbPartitionResolver to assemble both file
- * system-related and image-related metadata.
- * KlbSpimDataAdapter uses a KlbDataset to generate a SpimData2
- * instance that can be consumed by Fiji and/or saved to XML.
+ * KlbSpimDataAdapter, which generates a SpimData2 instance that can
+ * be consumed by Fiji and/or saved to XML.
  * <p/>
  * Returns metadata that is apparent from the file system, such as the
  * number of ViewSetups, time points and scales.
  * <p/>
  * Retrieves basic image-related metadata (image dimensions, block
  * dimensions, sampling).
- * <p/>
- * Provides the file system path to a representative KLB file to read
- * additional metadata, if necessary.
  * <p/>
  * Configures provided KlbImageIO and KlbRoi instances to read a block
  * defined by time point, ViewSetup, level, ROI start and
@@ -29,9 +23,21 @@ import org.janelia.simview.klb.jni.KlbRoi;
 public interface KlbPartitionResolver
 {
 
-    int getFirstViewSetup();
+    int getNumViewSetups();
 
-    int getLastViewSetup();
+    String getViewSetupName( final int viewSetup );
+
+    int getAngleId( final int viewSetup );
+
+    int getChannelId( final int viewSetup );
+
+    int getIlluminationId( final int viewSetup );
+
+    String getAngleName( final int viewSetup );
+
+    String getChannelName( final int viewSetup );
+
+    String getIlluminationName( final int viewSetup );
 
     int getFirstTimePoint();
 
@@ -50,9 +56,9 @@ public interface KlbPartitionResolver
 
     /**
      * Returns the highest number of available resolution levels
-     * across all ViewSetups (channels).
+     * across all ViewSetups (channelIds).
      *
-     * @return highest number of resolution levels across all channels
+     * @return highest number of resolution levels across all channelIds
      */
     int getMaxNumResolutionLevels();
 
@@ -117,14 +123,4 @@ public interface KlbPartitionResolver
             final KlbImageIO io,
             final KlbRoi roi
     );
-
-    /**
-     * Returns the file system path to a KLB file that is
-     * representative for this dataset. This can for
-     * instance be used to read additional image-related
-     * metadata.
-     *
-     * @return file system path to representative KLB file
-     */
-    String getRepresentativeFilePath();
 }

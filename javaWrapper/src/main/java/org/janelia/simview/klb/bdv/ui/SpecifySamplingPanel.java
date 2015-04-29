@@ -10,19 +10,19 @@ import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 
-public class OverrideSamplingPanel extends JPanel implements ActionListener
+public class SpecifySamplingPanel extends JPanel implements ActionListener
 {
-    private boolean doOverrideSampling = false;
-    private final JCheckBox checkBox = new JCheckBox( "Override sampling" );
+    private boolean isSamplingSpecified = false;
+    private final JCheckBox checkBox = new JCheckBox( "Specify sampling" );
     private final JTable table = new JTable();
     private final SamplingTableModel model = new SamplingTableModel();
 
-    public OverrideSamplingPanel()
+    public SpecifySamplingPanel()
     {
         table.setModel( model );
 
         checkBox.addActionListener( this );
-        checkBox.setSelected( doOverrideSampling );
+        checkBox.setSelected( isSamplingSpecified );
 
         setLayout( new MigLayout( "", "[][grow]", "[top]" ) );
         add( checkBox, "cell 0 0" );
@@ -31,9 +31,9 @@ public class OverrideSamplingPanel extends JPanel implements ActionListener
         setMaximumSize( new Dimension( Integer.MAX_VALUE, 90 ) );
     }
 
-    public boolean doOverrideSampling()
+    public boolean isSamplingSpecified()
     {
-        return doOverrideSampling;
+        return isSamplingSpecified;
     }
 
     public double[] getSampling()
@@ -50,8 +50,8 @@ public class OverrideSamplingPanel extends JPanel implements ActionListener
     public void actionPerformed( final ActionEvent e )
     {
         if ( e.getSource() == checkBox ) {
-            doOverrideSampling = checkBox.isSelected();
-            table.setEnabled( doOverrideSampling );
+            isSamplingSpecified = checkBox.isSelected();
+            table.setEnabled( isSamplingSpecified );
         }
     }
 

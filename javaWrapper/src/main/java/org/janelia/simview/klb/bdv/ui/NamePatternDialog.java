@@ -4,30 +4,63 @@ import bdv.BigDataViewer;
 import bdv.export.ProgressWriterConsole;
 import mpicbg.spim.data.SpimDataException;
 import net.miginfocom.swing.MigLayout;
-import org.janelia.simview.klb.bdv.KlbDataset;
+import org.janelia.simview.klb.bdv.KlbMultiFileNameTag;
 import org.janelia.simview.klb.bdv.KlbPartitionResolver;
-import org.janelia.simview.klb.bdv.KlbPartitionResolverNamePatternSimple;
+import org.janelia.simview.klb.bdv.KlbPartitionResolverDefault;
 import org.janelia.simview.klb.bdv.KlbSpimDataAdapter;
 
 import javax.swing.*;
 import java.awt.event.*;
+import java.util.ArrayList;
+import java.util.List;
 
-public class NamePatternSimpleDialog extends JDialog implements ActionListener
+public class NamePatternDialog extends JDialog implements ActionListener
 {
-    private final NameTagPanel nameTagPanel = new NameTagPanel();
-    private final OverrideSamplingPanel samplingPanel = new OverrideSamplingPanel();
-    private final SingleFilePathPanel filePathPanel = new SingleFilePathPanel( "Template file", JFileChooser.FILES_ONLY, nameTagPanel, samplingPanel );
+    private final List< KlbMultiFileNameTag > tags;
+    private final NameTagPanel nameTagPanel;
+    private final SpecifySamplingPanel samplingPanel = new SpecifySamplingPanel();
+    private final SingleFilePathPanel filePathPanel;
     private final JButton viewButton = new JButton( "View in Big Data Viewer" );
     private final JButton saveXmlButton = new JButton( "Save XML" );
     private final JButton cancelButton = new JButton( "Cancel" );
 
-    public NamePatternSimpleDialog()
+    public NamePatternDialog()
     {
+        setTitle( "Import KLB Dataset" );
+
+        final KlbMultiFileNameTag angleTag = new KlbMultiFileNameTag();
+        angleTag.dimension = KlbMultiFileNameTag.Dimension.ANGLE;
+        angleTag.tag = "CM";
+
+        final KlbMultiFileNameTag channelTag = new KlbMultiFileNameTag();
+        channelTag.dimension = KlbMultiFileNameTag.Dimension.CHANNEL;
+        channelTag.tag = "CHN";
+
+        final KlbMultiFileNameTag illuminationTag = new KlbMultiFileNameTag();
+        illuminationTag.dimension = KlbMultiFileNameTag.Dimension.ILLUMINATION;
+        illuminationTag.tag = "";
+
+        final KlbMultiFileNameTag timeTag = new KlbMultiFileNameTag();
+        timeTag.dimension = KlbMultiFileNameTag.Dimension.TIME;
+        timeTag.tag = "TM";
+
+        final KlbMultiFileNameTag levelTag = new KlbMultiFileNameTag();
+        levelTag.dimension = KlbMultiFileNameTag.Dimension.RESOLUTION_LEVEL;
+        levelTag.tag = "RESLVL";
+
+        tags = new ArrayList< KlbMultiFileNameTag >();
+        tags.add( angleTag );
+        tags.add( channelTag );
+        tags.add( illuminationTag );
+        tags.add( timeTag );
+        tags.add( levelTag );
+
+        nameTagPanel = new NameTagPanel( tags );
+        filePathPanel = new SingleFilePathPanel( "Template file", JFileChooser.FILES_ONLY, nameTagPanel, samplingPanel );
+
         viewButton.addActionListener( this );
         saveXmlButton.addActionListener( this );
         cancelButton.addActionListener( this );
-
-        setTitle( "Load simple name pattern" );
 
         final JPanel buttonPanel = new JPanel();
         buttonPanel.setLayout( new MigLayout( "", "[grow][][][]", "[]" ) );
@@ -61,13 +94,18 @@ public class NamePatternSimpleDialog extends JDialog implements ActionListener
         }, KeyStroke.getKeyStroke( KeyEvent.VK_ESCAPE, 0 ), JComponent.WHEN_ANCESTOR_OF_FOCUSED_COMPONENT );
     }
 
-    private KlbDataset getDataset()
+    public KlbPartitionResolver getResolver()
     {
-        final String[] tags = nameTagPanel.getNameTags();
-        final int[] indices = nameTagPanel.getIndices();
-        final KlbPartitionResolver resolver = new KlbPartitionResolverNamePatternSimple( filePathPanel.getFilePath(), tags[ 0 ], tags[ 1 ], indices[ 0 ], indices[ 1 ], indices[ 2 ], indices[ 3 ], 1 );
-        final KlbDataset data = samplingPanel.doOverrideSampling() ? new KlbDataset( resolver, samplingPanel.getSampling() ) : new KlbDataset( resolver );
-        return data;
+        final KlbPartitionResolverDefault resolver = new KlbPartitionResolverDefault( filePathPanel.getFilePath(), tags );
+        if ( samplingPanel.isSamplingSpecified() ) {
+            final double[] fromPanel = samplingPanel.getSampling();
+            final double[][] sampling = new double[ resolver.getMaxNumResolutionLevels() ][ 3 ];
+            sampling[ 0 ][ 0 ] = fromPanel[ 0 ];
+            sampling[ 0 ][ 1 ] = fromPanel[ 1 ];
+            sampling[ 0 ][ 2 ] = fromPanel[ 2 ];
+            resolver.specifySampling( sampling );
+        }
+        return resolver;
     }
 
     private void onCancel()
@@ -81,7 +119,7 @@ public class NamePatternSimpleDialog extends JDialog implements ActionListener
         final Object source = event.getSource();
 
         if ( source == viewButton ) {
-            final KlbSpimDataAdapter spimData = new KlbSpimDataAdapter( getDataset() );
+            final KlbSpimDataAdapter spimData = new KlbSpimDataAdapter( getResolver() );
             try {
                 new BigDataViewer( spimData.createDataset(), filePathPanel.getFilePath(), new ProgressWriterConsole() );
             } catch ( Exception ex ) {
@@ -94,7 +132,7 @@ public class NamePatternSimpleDialog extends JDialog implements ActionListener
             chooser.setFileSelectionMode( JFileChooser.FILES_ONLY );
             if ( chooser.showSaveDialog( this ) == JFileChooser.APPROVE_OPTION ) {
                 final String filePath = chooser.getSelectedFile().getAbsolutePath();
-                final KlbSpimDataAdapter spimData = new KlbSpimDataAdapter( getDataset() );
+                final KlbSpimDataAdapter spimData = new KlbSpimDataAdapter( getResolver() );
                 try {
                     spimData.writeXML( filePath );
                 } catch ( SpimDataException ex ) {

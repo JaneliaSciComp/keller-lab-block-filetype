@@ -3,7 +3,7 @@ package org.janelia.simview.klb.bdv;
 import bdv.AbstractViewerImgLoader;
 import bdv.img.cache.*;
 import bdv.img.cache.VolatileImgCells.CellCache;
-import mpicbg.spim.data.sequence.FinalVoxelDimensions;
+import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
 import mpicbg.spim.data.sequence.ImgLoader;
 import mpicbg.spim.data.sequence.ViewId;
 import mpicbg.spim.data.sequence.VoxelDimensions;
@@ -19,6 +19,8 @@ import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
 
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -27,45 +29,66 @@ public class KlbImageLoader
         extends AbstractViewerImgLoader< UnsignedShortType, VolatileUnsignedShortType >
         implements ImgLoader< UnsignedShortType >
 {
+    private final KlbPartitionResolver resolver;
+    private final AbstractSequenceDescription< ?, ?, ? > sequenceDescription;
+    private final Map< Integer, double[][] > mipMapResolutionMap = new HashMap< Integer, double[][] >();
+    private final Map< Integer, AffineTransform3D[] > mipMapTransformMap = new HashMap< Integer, AffineTransform3D[] >();
 
-    private final KlbDataset dataset;
     private VolatileGlobalCellCache< VolatileShortArray > cache;
 
-    public KlbImageLoader( final KlbDataset dataset )
+    public KlbImageLoader( final KlbPartitionResolver resolver, final AbstractSequenceDescription< ?, ?, ? > seq )
     {
         super( new UnsignedShortType(), new VolatileUnsignedShortType() );
-        this.dataset = dataset;
+        this.resolver = resolver;
+        sequenceDescription = seq;
+        final int numTimePoints = 1 + resolver.getLastTimePoint() - resolver.getFirstTimePoint();
 
         cache = new VolatileGlobalCellCache< VolatileShortArray >(
-                new KlbVolatileShortArrayLoader( dataset.getResolver() ),
-                dataset.getNumTimePoints(),
-                dataset.getNumViewSetups(),
-                dataset.getMaxNumResolutionLevels(),
+                new KlbVolatileShortArrayLoader( resolver ),
+                numTimePoints,
+                resolver.getNumViewSetups(),
+                resolver.getMaxNumResolutionLevels(),
                 Runtime.getRuntime().availableProcessors()
         );
     }
 
-    public KlbDataset getKlbDataset()
+    public KlbPartitionResolver getResolver()
     {
-        return dataset;
+        return resolver;
     }
 
     @Override
     public int numMipmapLevels( final int viewSetup )
     {
-        return dataset.getNumResolutionLevels( viewSetup );
+        return resolver.getNumResolutionLevels( viewSetup );
     }
 
     @Override
     public double[][] getMipmapResolutions( final int viewSetup )
     {
-        return dataset.getMipMapResolutions( viewSetup );
+        double[][] resolutions = mipMapResolutionMap.get( viewSetup );
+        if ( resolutions == null ) {
+            resolutions = new double[ resolver.getNumResolutionLevels( viewSetup ) ][ 3 ];
+            for ( int level = 0; level < resolutions.length; ++level ) {
+                resolver.getSampling( resolver.getFirstTimePoint(), viewSetup, level, resolutions[ level ] );
+            }
+            mipMapResolutionMap.put( viewSetup, resolutions );
+        }
+        return resolutions;
     }
 
     @Override
     public AffineTransform3D[] getMipmapTransforms( final int viewSetup )
     {
-        return dataset.getMipMapTransforms( viewSetup );
+        AffineTransform3D[] transforms = mipMapTransformMap.get( viewSetup );
+        if ( transforms == null ) {
+            transforms = new AffineTransform3D[ resolver.getNumResolutionLevels( viewSetup ) ];
+            for ( int level = 0; level < transforms.length; ++level ) {
+                transforms[ level ] = new AffineTransform3D();
+            }
+            mipMapTransformMap.put( viewSetup, transforms );
+        }
+        return transforms;
     }
 
     @Override
@@ -77,13 +100,13 @@ public class KlbImageLoader
     @Override
     public Dimensions getImageSize( final ViewId view )
     {
-        return new FinalDimensions( dataset.getImageDimensions( view.getTimePointId(), view.getViewSetupId() )[ 0 ] );
+        return sequenceDescription.getViewSetups().get( view.getViewSetupId() ).getSize();
     }
 
     @Override
     public VoxelDimensions getVoxelSize( final ViewId view )
     {
-        return new FinalVoxelDimensions( "um", dataset.getSampling( view.getViewSetupId(), view.getViewSetupId() )[ 0 ] );
+        return sequenceDescription.getViewSetups().get( view.getViewSetupId() ).getVoxelSize();
     }
 
     @Override
@@ -127,13 +150,15 @@ public class KlbImageLoader
         final int timePoint = view.getTimePointId();
         final int viewSetup = view.getViewSetupId();
 
-        final long[] dimensions = dataset.getImageDimensions( timePoint, viewSetup )[ level ];
-        final int[] cellDimensions = dataset.getBlockDimensions( timePoint, viewSetup )[ level ];
+        final long[] imageDimensions = new long[ 3 ];
+        final int[] blockDimensions = new int[ 3 ];
+        resolver.getImageDimensions( timePoint, viewSetup, 0, imageDimensions );
+        resolver.getBlockDimensions( timePoint, viewSetup, 0, blockDimensions );
 
-        final int priority = dataset.getNumResolutionLevels( viewSetup ) - 1 - level;
+        final int priority = resolver.getNumResolutionLevels( viewSetup ) - 1 - level;
         final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
         final CellCache< VolatileShortArray > c = cache.new VolatileCellCache( timePoint, viewSetup, level, cacheHints );
-        final VolatileImgCells< VolatileShortArray > cells = new VolatileImgCells< VolatileShortArray >( c, new Fraction(), dimensions, cellDimensions );
+        final VolatileImgCells< VolatileShortArray > cells = new VolatileImgCells< VolatileShortArray >( c, new Fraction(), imageDimensions, blockDimensions );
         final CachedCellImg< T, VolatileShortArray > img = new CachedCellImg< T, VolatileShortArray >( cells );
         return img;
     }

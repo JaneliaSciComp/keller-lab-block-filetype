@@ -1,6 +1,6 @@
 package org.janelia.simview.klb.bdv;
 
-import org.janelia.simview.klb.bdv.ui.NamePatternSimpleDialog;
+import org.janelia.simview.klb.bdv.ui.NamePatternDialog;
 
 import javax.swing.*;
 import java.awt.*;
@@ -20,7 +20,7 @@ public class BdvMain
             public void run()
             {
                 try {
-                    final JDialog dialog = new NamePatternSimpleDialog();
+                    final JDialog dialog = new NamePatternDialog();
                     dialog.pack();
                     dialog.setLocationRelativeTo( null );
                     dialog.setVisible( true );

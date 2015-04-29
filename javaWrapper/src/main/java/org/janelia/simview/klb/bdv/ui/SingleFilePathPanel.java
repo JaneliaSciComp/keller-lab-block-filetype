@@ -14,9 +14,9 @@ public class SingleFilePathPanel extends JPanel implements ActionListener
 
     // ToDo: use events rather than references
     private final NameTagPanel nameTagPanel;
-    private final OverrideSamplingPanel samplingPanel;
+    private final SpecifySamplingPanel samplingPanel;
 
-    public SingleFilePathPanel( final String label, final int fileChooserSelectionMode, final NameTagPanel nameTagPanel, final OverrideSamplingPanel samplingPanel )
+    public SingleFilePathPanel( final String label, final int fileChooserSelectionMode, final NameTagPanel nameTagPanel, final SpecifySamplingPanel samplingPanel )
     {
         this.nameTagPanel = nameTagPanel;
         this.samplingPanel = samplingPanel;
@@ -48,7 +48,7 @@ public class SingleFilePathPanel extends JPanel implements ActionListener
                 textField.setText( filePath );
 
                 nameTagPanel.updateTemplate( filePath );
-                if ( !samplingPanel.doOverrideSampling() ) {
+                if ( !samplingPanel.isSamplingSpecified() ) {
                     samplingPanel.updateSampling( filePath );
                 }
             }

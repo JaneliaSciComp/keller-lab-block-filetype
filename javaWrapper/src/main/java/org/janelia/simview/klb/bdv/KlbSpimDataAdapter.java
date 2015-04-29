@@ -2,7 +2,6 @@ package org.janelia.simview.klb.bdv;
 
 import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.XmlIoSpimData;
-import mpicbg.spim.data.generic.sequence.BasicViewSetup;
 import mpicbg.spim.data.registration.ViewRegistration;
 import mpicbg.spim.data.registration.ViewRegistrations;
 import mpicbg.spim.data.sequence.*;
@@ -16,17 +15,18 @@ import java.util.ArrayList;
 import java.util.HashMap;
 
 /**
- * Interfaces a KlbDataset instance with Fiji's SpimData dataset
- * layout description. Can be consumed directly or serialized to XML.
+ * Interfaces a KlbPartitionResolver instance with Fiji's SpimData
+ * dataset layout description. Can be consumed directly or serialized
+ * to XML.
  */
 public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
 {
 
-    private final KlbDataset data;
+    private final KlbPartitionResolver resolver;
 
-    public KlbSpimDataAdapter( final KlbDataset data )
+    public KlbSpimDataAdapter( final KlbPartitionResolver resolver )
     {
-        this.data = data;
+        this.resolver = resolver;
     }
 
     @Override
@@ -46,25 +46,39 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
     {
         final String basePath = "";
 
-        final String[] setups = new String[ data.getNumViewSetups() ];
+        final String[] setups = new String[ resolver.getNumViewSetups() ];
         for ( int i = 0; i < setups.length; ++i ) {
-            setups[ i ] = "" + i;
+            setups[ i ] = resolver.getViewSetupName( i );
         }
-
-        final int firstTimePoint = data.getResolver().getFirstTimePoint();
-        final int lastTimePoint = data.getResolver().getLastTimePoint();
 
         final HashMap< Integer, ViewSetup > setupMap = new HashMap< Integer, ViewSetup >();
+        final long[] dimensions = new long[ 3 ];
+        final double[] sampling = new double[ 3 ];
         for ( int s = 0; s < setups.length; ++s ) {
+            // Define time point to read image metadata from.
+            // Data files can be missing, so probe until one is found.
+            // Start with last time point to catch the biggest volume in
+            // case the image volume is growing over time.
+            // Currently, we are assuming a constant image size, and same
+            // sampling and number of resolution levels for all channelIds.
+            int timePoint = resolver.getLastTimePoint();
+            for (; timePoint >= resolver.getFirstTimePoint(); --timePoint ) {
+                if ( resolver.getImageDimensions( timePoint, s, 0, dimensions ) ) {
+                    break;
+                }
+            }
+            resolver.getSampling( timePoint, s, 0, sampling );
             setupMap.put( s, new ViewSetup(
                     s, setups[ s ],
-                    new FinalDimensions( data.getImageDimensions( 0, 0 )[ 0 ] ),
-                    new FinalVoxelDimensions( "um", data.getSampling( 0, 0 )[ 0 ] ),
-                    new Channel( s, setups[ s ] ),
-                    new Angle( s, setups[ s ] ),
-                    new Illumination( s, setups[ s ] ) ) );
+                    new FinalDimensions( dimensions ),
+                    new FinalVoxelDimensions( "um", sampling ),
+                    new Channel( resolver.getChannelId( s ), resolver.getChannelName( s ) ),
+                    new Angle( resolver.getAngleId( s ), resolver.getAngleName( s ) ),
+                    new Illumination( resolver.getIlluminationId( s ), resolver.getIlluminationName( s ) ) ) );
         }
 
+        final int firstTimePoint = resolver.getFirstTimePoint();
+        final int lastTimePoint = resolver.getLastTimePoint();
         final HashMap< Integer, TimePoint > timepointMap = new HashMap< Integer, TimePoint >();
         for ( int t = 0; t <= lastTimePoint; ++t ) {
             timepointMap.put( t, new TimePoint( t ) );
@@ -85,17 +99,20 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
         final SequenceDescription seq = new SequenceDescription(
                 timePoints,
                 setupMap,
-                new KlbImageLoader( data ),
+                null,
                 missingViews );
 
+        final KlbImageLoader loader = new KlbImageLoader( resolver, seq );
+        seq.setImgLoader( loader );
+
         final HashMap< ViewId, ViewRegistration > registrations = new HashMap< ViewId, ViewRegistration >();
-        final double[] sampling = data.getSampling( 0, 0 )[ 0 ];
-        final double min = Math.min( Math.min( sampling[ 0 ], sampling[ 1 ] ), sampling[ 2 ] );
-        for ( int i = 0; i < 3; ++i ) {
-            sampling[ i ] /= min;
-        }
-        for ( final BasicViewSetup setup : seq.getViewSetupsOrdered() ) {
-            final int setupId = setup.getId();
+        for ( final ViewSetup setup : seq.getViewSetupsOrdered() ) {
+            final int id = setup.getId();
+            resolver.getSampling( 0, id, 0, sampling );
+            final double min = Math.min( Math.min( sampling[ 0 ], sampling[ 1 ] ), sampling[ 2 ] );
+            for ( int d = 0; d < sampling.length; ++d ) {
+                sampling[ d ] /= min;
+            }
 
             final AffineTransform3D calib = new AffineTransform3D();
             calib.set(
@@ -106,7 +123,7 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
             for ( final TimePoint timepoint : seq.getTimePoints().getTimePointsOrdered() ) {
                 final int timepointId = timepoint.getId();
                 if ( timepointId >= firstTimePoint ) {
-                    registrations.put( new ViewId( timepointId, setupId ), new ViewRegistration( timepointId, setupId, calib ) );
+                    registrations.put( new ViewId( timepointId, id ), new ViewRegistration( timepointId, id, calib ) );
                 }
             }
         }
@@ -142,8 +159,8 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
     //            setups[ i ] = "" + i;
     //        }
     //
-    //        final int firstTimePoint = data.getResolver().getFirstTimePoint();
-    //        final int lastTimePoint = data.getResolver().getLastTimePoint();
+    //        final int firstTimePoint = resolver.getFirstTimePoint();
+    //        final int lastTimePoint = resolver.getLastTimePoint();
     //
     //        final HashMap< Integer, BasicViewSetup > setupMap = new HashMap< Integer, BasicViewSetup >();
     //        for ( int s = 0; s < setups.length; ++s ) {

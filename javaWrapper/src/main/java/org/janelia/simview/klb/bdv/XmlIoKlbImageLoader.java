@@ -7,6 +7,8 @@ import mpicbg.spim.data.generic.sequence.XmlIoBasicImgLoader;
 import org.jdom2.Element;
 
 import java.io.File;
+import java.util.ArrayList;
+import java.util.List;
 
 import static mpicbg.spim.data.XmlKeys.IMGLOADER_FORMAT_ATTRIBUTE_NAME;
 
@@ -19,56 +21,108 @@ public class XmlIoKlbImageLoader implements XmlIoBasicImgLoader< KlbImageLoader 
     {
         final Element elem = new Element( "ImageLoader" );
         elem.setAttribute( IMGLOADER_FORMAT_ATTRIBUTE_NAME, "klb" );
-        elem.addContent( resolverToXml( imgLoader.getKlbDataset().getResolver() ) );
+        elem.addContent( resolverToXml( imgLoader.getResolver() ) );
         return elem;
     }
 
     @Override
     public KlbImageLoader fromXml( final Element elem, final File basePath, final AbstractSequenceDescription< ?, ?, ? > sequenceDescription )
     {
-        final KlbPartitionResolver resolver = resolverFromXml( elem );
-        return new KlbImageLoader( new KlbDataset( resolver ) );
+        final KlbPartitionResolver resolver = resolverFromXml( elem.getChild( "Resolver" ) );
+        return new KlbImageLoader( resolver, sequenceDescription );
     }
 
     private Element resolverToXml( final KlbPartitionResolver resolver )
     {
-        final Element elem = new Element( "resolver" );
+        final Element resolverElem = new Element( "Resolver" );
 
         final String type = resolver.getClass().getName();
-        elem.addContent( XmlHelpers.textElement( "type", type ) );
+        resolverElem.setAttribute( "type", type );
 
-        if ( type.equals( KlbPartitionResolverNamePatternSimple.class.getName() ) ) {
-            final KlbPartitionResolverNamePatternSimple typedInstance = ( KlbPartitionResolverNamePatternSimple ) resolver;
-            elem.addContent( XmlHelpers.textElement( "template", typedInstance.template ) );
-            elem.addContent( XmlHelpers.textElement( "setupTag", typedInstance.setupTag ) );
-            elem.addContent( XmlHelpers.textElement( "timeTag", typedInstance.timeTag ) );
-            elem.addContent( XmlHelpers.intElement( "firstSetup", typedInstance.firstSetup ) );
-            elem.addContent( XmlHelpers.intElement( "lastSetup", typedInstance.lastSetup ) );
-            elem.addContent( XmlHelpers.intElement( "firstTimePoint", typedInstance.firstTimePoint ) );
-            elem.addContent( XmlHelpers.intElement( "lastTimePoint", typedInstance.lastTimePoint ) );
-            elem.addContent( XmlHelpers.intElement( "numResolutionLevels", typedInstance.numResolutionLevels ) );
+        if ( type.equals( KlbPartitionResolverDefault.class.getName() ) ) {
+            final KlbPartitionResolverDefault typedResolver = ( KlbPartitionResolverDefault ) resolver;
+            for ( final String template : typedResolver.viewSetupTemplates ) {
+                final Element templateElem = new Element( "ViewSetupTemplate" );
+                templateElem.addContent( XmlHelpers.textElement( "template", template ) );
+                resolverElem.addContent( templateElem );
+            }
+            if ( typedResolver.getLastTimePoint() - typedResolver.getFirstTimePoint() > 0 ) {
+                KlbMultiFileNameTag tag = new KlbMultiFileNameTag();
+                tag.dimension = KlbMultiFileNameTag.Dimension.TIME;
+                tag.tag = typedResolver.timeTag;
+                tag.first = typedResolver.getFirstTimePoint();
+                tag.last = typedResolver.getLastTimePoint();
+                tag.stride = 1;
+                resolverElem.addContent( nameTagToXml( tag ) );
+            }
+        }
+
+        return resolverElem;
+    }
+
+    private KlbPartitionResolver resolverFromXml( final Element elem )
+    {
+        final String type = elem.getAttributeValue( "type" );
+        if ( type.equals( KlbPartitionResolverDefault.class.getName() ) ) {
+            final List< String > templates = new ArrayList< String >();
+
+            for ( final Element e : elem.getChildren( "ViewSetupTemplate" ) ) {
+                templates.add( XmlHelpers.getText( e, "template" ) );
+            }
+
+            final List< KlbMultiFileNameTag > tags = new ArrayList< KlbMultiFileNameTag >();
+            for ( final Element e : elem.getChildren( "MultiFileNameTag" ) ) {
+                tags.add( nameTagFromXml( e ) );
+            }
+
+            String[] arr = new String[ templates.size() ];
+            templates.toArray( arr );
+            return new KlbPartitionResolverDefault( arr, tags.get( 0 ).tag, tags.get( 0 ).first, tags.get( 0 ).last, "RESLVL", 1 );
+        }
+
+        throw new RuntimeException( "Could not instantiate KlbPartitionResolver" );
+    }
+
+    private Element nameTagToXml( final KlbMultiFileNameTag tag )
+    {
+        final Element elem = new Element( "MultiFileNameTag" );
+        elem.addContent( XmlHelpers.textElement( "dimension", tag.dimension.toString() ) );
+        elem.addContent( XmlHelpers.textElement( "tag", tag.tag ) );
+        elem.addContent( XmlHelpers.intElement( "lastIndex", tag.last ) );
+
+        if ( tag.first != 0 ) {
+            elem.addContent( XmlHelpers.intElement( "firstIndex", tag.first ) );
+        }
+
+        if ( tag.stride != 1 ) {
+            elem.addContent( XmlHelpers.intElement( "indexStride", tag.stride ) );
         }
 
         return elem;
     }
 
-    private KlbPartitionResolver resolverFromXml( final Element elem )
+    private KlbMultiFileNameTag nameTagFromXml( final Element elem )
     {
-        final Element resolverElem = elem.getChild( "resolver" );
-        final String type = XmlHelpers.getText( resolverElem, "type" );
-        if ( type.equals( KlbPartitionResolverNamePatternSimple.class.getName() ) ) {
-            final String template = XmlHelpers.getText( resolverElem, "template" );
-            final String setupTag = XmlHelpers.getText( resolverElem, "setupTag" );
-            final String timeTag = XmlHelpers.getText( resolverElem, "timeTag" );
-            final int firstSetup = XmlHelpers.getInt( resolverElem, "firstSetup" );
-            final int lastSetup = XmlHelpers.getInt( resolverElem, "lastSetup" );
-            final int firstTimePoint = XmlHelpers.getInt( resolverElem, "firstTimePoint" );
-            final int lastTimePoint = XmlHelpers.getInt( resolverElem, "lastTimePoint" );
-            final int numScales = XmlHelpers.getInt( resolverElem, "numResolutionLevels" );
+        final KlbMultiFileNameTag tag = new KlbMultiFileNameTag();
+        final String dim = XmlHelpers.getText( elem, "dimension" );
+        if ( dim.equals( KlbMultiFileNameTag.Dimension.TIME.toString() ) ) {
+            tag.dimension = KlbMultiFileNameTag.Dimension.TIME;
+        }
+        tag.tag = XmlHelpers.getText( elem, "tag" );
+        tag.last = XmlHelpers.getInt( elem, "lastIndex" );
 
-            return new KlbPartitionResolverNamePatternSimple( template, setupTag, timeTag, firstSetup, lastSetup, firstTimePoint, lastTimePoint, numScales );
+        tag.first = 0;
+        try {
+            tag.first = XmlHelpers.getInt( elem, "firstIndex" );
+        } catch ( Exception ex ) {
         }
 
-        throw new RuntimeException( "Could not instantiate KlbPartitionResolver" );
+        tag.stride = 1;
+        try {
+            tag.stride = XmlHelpers.getInt( elem, "indexStride" );
+        } catch ( Exception ex ) {
+        }
+
+        return tag;
     }
 }
