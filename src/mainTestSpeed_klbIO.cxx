@@ -34,7 +34,7 @@ int main(int argc, const char** argv)
 
 	int numThreads = std::thread::hardware_concurrency();//<= 0 indicates use as many as possible
 	std::uint32_t	blockSize[KLB_DATA_DIMS] = {96, 96, 8, 1, 1};
-	int compressionType = 2;//2->zlib;1->bzip2; 0->none (look at enum KLB_COMPRESSION_TYPE)
+	KLB_COMPRESSION_TYPE compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none (look at enum KLB_COMPRESSION_TYPE)
 
 
 	std::string basename("E:/temp/mouse_TM000000_angle000");
@@ -74,7 +74,7 @@ int main(int argc, const char** argv)
 	//setup header
 	memcpy(imgIO.header.xyzct, xyzct, sizeof(uint32_t)* KLB_DATA_DIMS);
 	memcpy(imgIO.header.blockSize, blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
-	imgIO.header.dataType = 1;//uint16
+	imgIO.header.dataType = KLB_DATA_TYPE::UINT16_TYPE;//uint16
 	imgIO.header.compressionType = compressionType;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		imgIO.header.pixelSize[ii] = 1.2f*(ii+1);
