@@ -26,13 +26,13 @@
 int main(int argc, const char** argv)
 {
 	int numThreads = 10;//<= 0 indicates use as many as possible
-	int compressionType = 2;//2->zlib;1->bzip2; 0->none
+	enum KLB_COMPRESSION_TYPE compressionType = BZIP2;//2->zlib;1->bzip2; 0->none
 	
-	char filenameOut[256] = "../testData/img";
+	char filenameOut[256] = "../../testData/img";
 	uint32_t	xyzct[KLB_DATA_DIMS] = { 101, 151, 29, 1, 1 };//137 total Z planes
 	uint32_t	blockSize[KLB_DATA_DIMS] = { 96, 96, 8, 1, 1 };
 	char metadata_[KLB_METADATA_SIZE];
-	uint8_t dataType = 1;
+	enum KLB_DATA_TYPE dataType = UINT16_TYPE;
 	char filenameAux[256];
 
 	int64_t ii;
@@ -125,7 +125,8 @@ int main(int argc, const char** argv)
 	uint32_t	xyzctR[KLB_DATA_DIMS];
 	uint32_t	blockSizeR[KLB_DATA_DIMS];
 	char metadataR[KLB_METADATA_SIZE];
-	uint8_t dataTypeR, compressionTypeR;
+	enum KLB_DATA_TYPE dataTypeR;
+	enum KLB_COMPRESSION_TYPE compressionTypeR;
 	float32_t pixelSizeR[KLB_METADATA_SIZE];
 
 
