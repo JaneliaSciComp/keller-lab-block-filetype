@@ -25,6 +25,7 @@ public class KlbJNI {
   public final static native int FLOAT64_TYPE_get();
   public final static native int NONE_get();
   public final static native int BZIP2_get();
+  public final static native int ZLIB_get();
   public final static native void KlbImageHeader_headerVersion_set(long jarg1, KlbImageHeader jarg1_, short jarg2);
   public final static native short KlbImageHeader_headerVersion_get(long jarg1, KlbImageHeader jarg1_);
   public final static native void KlbImageHeader_xyzct_set(long jarg1, KlbImageHeader jarg1_, long[] jarg2);

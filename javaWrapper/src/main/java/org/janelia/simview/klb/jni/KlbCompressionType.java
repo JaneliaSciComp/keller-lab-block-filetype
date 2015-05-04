@@ -10,7 +10,8 @@ package org.janelia.simview.klb.jni;
 
 public enum KlbCompressionType {
   NONE(KlbJNI.NONE_get()),
-  BZIP2(KlbJNI.BZIP2_get());
+  BZIP2(KlbJNI.BZIP2_get()),
+  ZLIB(KlbJNI.ZLIB_get());
 
   public final int swigValue() {
     return swigValue;

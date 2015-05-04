@@ -24,6 +24,7 @@
 %ignore klb_image_header::readHeader(std::istream &fid);
 %ignore klb_image_header::writeHeader(std::ostream &fid);
 %ignore klb_image_header::writeHeader(FILE* fid);
+%ignore klb_imageIO::writeImageStackSlices(const char** BYTE, int numThreads);
 
 // hide unnecessary members and functions
 %ignore KLB_METADATA_SIZE;
@@ -54,12 +55,14 @@
 
 %{
 // Includes header and wrapper code
+#include "common.h"
 #include "klb_imageHeader.h"
 #include "klb_ROI.h"
 #include "klb_imageIO.h"
 %}
 
 // Parse header file to generate wrappers
+%include "common.h"
 %include "klb_imageHeader.h"
 %include "klb_ROI.h"
 %include "klb_imageIO.h"
