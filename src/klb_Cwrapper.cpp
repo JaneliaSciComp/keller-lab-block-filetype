@@ -16,7 +16,7 @@
 #include "klb_imageIO.h"
 
 
-int writeKLBstack(const void* im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, uint8_t compressionType = KLB_COMPRESSION_TYPE::BZIP2, char metadata[KLB_METADATA_SIZE] = NULL)
+int writeKLBstack(const void* im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], KLB_DATA_TYPE dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, KLB_COMPRESSION_TYPE compressionType = KLB_COMPRESSION_TYPE::BZIP2, char metadata[KLB_METADATA_SIZE] = NULL)
 {
 	
 	//initialize I/O object
@@ -50,7 +50,7 @@ int writeKLBstack(const void* im, const char* filename, uint32_t xyzct[KLB_DATA_
 }
 
 //================================================================================================================================================
-int writeKLBstackSlices(const void** im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, uint8_t compressionType = KLB_COMPRESSION_TYPE::BZIP2, char metadata[KLB_METADATA_SIZE] = NULL)
+int writeKLBstackSlices(const void** im, const char* filename, uint32_t xyzct[KLB_DATA_DIMS], KLB_DATA_TYPE dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, KLB_COMPRESSION_TYPE compressionType = KLB_COMPRESSION_TYPE::BZIP2, char metadata[KLB_METADATA_SIZE] = NULL)
 {
 
 	//initialize I/O object
@@ -85,7 +85,7 @@ int writeKLBstackSlices(const void** im, const char* filename, uint32_t xyzct[KL
 }
 
 //===================================================================================
-int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], uint8_t *compressionType, char metadata[KLB_METADATA_SIZE])
+int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], KLB_DATA_TYPE *dataType, float32_t pixelSize[KLB_DATA_DIMS], uint32_t blockSize[KLB_DATA_DIMS], KLB_COMPRESSION_TYPE *compressionType, char metadata[KLB_METADATA_SIZE])
 {
 	std::string filenameOut(filename);
 
@@ -110,7 +110,7 @@ int readKLBheader(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *
 
 
 //===========================================================================================
-void* readKLBstack(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t *dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, uint8_t *compressionType = NULL, char metadata[KLB_METADATA_SIZE] = NULL)
+void* readKLBstack(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], KLB_DATA_TYPE *dataType, int numThreads = -1, float32_t pixelSize[KLB_DATA_DIMS] = NULL, uint32_t blockSize[KLB_DATA_DIMS] = NULL, KLB_COMPRESSION_TYPE *compressionType = NULL, char metadata[KLB_METADATA_SIZE] = NULL)
 {
 	void* im = NULL;
 
@@ -152,7 +152,7 @@ void* readKLBstack(const char* filename, uint32_t xyzct[KLB_DATA_DIMS], uint8_t 
 }
 
 //===========================================================================================
-int readKLBstackInPlace(const char* filename, void* im, uint8_t *dataType, int numThreads)
+int readKLBstackInPlace(const char* filename, void* im, KLB_DATA_TYPE *dataType, int numThreads)
 {
 	std::string filenameOut(filename);
 

@@ -37,10 +37,12 @@
 
 #endif
 
+#if defined(_MSC_VER)
 //from http://support2.microsoft.com/default.aspx?scid=KB;EN-US;168958 to export DLL with STL objects within the class
 //all the STL containers are private, so it should be safe to ignore the warnings for stl::string http://stackoverflow.com/questions/767579/exporting-classes-containing-std-objects-vector-map-etc-from-a-dll
 EXPIMP_TEMPLATE class DECLSPECIFIER std::mutex;
 EXPIMP_TEMPLATE class DECLSPECIFIER std::condition_variable;
+#endif
 
 class DECLSPECIFIER klb_imageIO
 {

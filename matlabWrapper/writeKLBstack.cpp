@@ -66,43 +66,43 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 	switch (mxGetClassID(prhs[0]))
 	{
 	case mxUINT8_CLASS:
-		imgIO.header.dataType = 0;
+		imgIO.header.dataType = KLB_DATA_TYPE::UINT8_TYPE;
 		break;
 
 	case mxUINT16_CLASS:
-		imgIO.header.dataType = 1;
+		imgIO.header.dataType = KLB_DATA_TYPE::UINT16_TYPE;
 		break;
 
 	case mxUINT32_CLASS:
-		imgIO.header.dataType = 2;
+		imgIO.header.dataType = KLB_DATA_TYPE::UINT32_TYPE;
 		break;
 
 	case mxUINT64_CLASS:
-		imgIO.header.dataType = 3;
+		imgIO.header.dataType = KLB_DATA_TYPE::UINT64_TYPE;
 		break;
 
 	case mxINT8_CLASS:
-		imgIO.header.dataType = 4;
+		imgIO.header.dataType = KLB_DATA_TYPE::INT8_TYPE;
 		break;
 
 	case mxINT16_CLASS:
-		imgIO.header.dataType = 5;
+		imgIO.header.dataType = KLB_DATA_TYPE::INT16_TYPE;
 		break;
 
 	case mxINT32_CLASS:
-		imgIO.header.dataType = 6;
+		imgIO.header.dataType = KLB_DATA_TYPE::INT32_TYPE;
 		break;
 
 	case mxINT64_CLASS:
-		imgIO.header.dataType = 7;
+		imgIO.header.dataType = KLB_DATA_TYPE::INT64_TYPE;
 		break;
 
 	case mxSINGLE_CLASS:
-		imgIO.header.dataType = 8;
+		imgIO.header.dataType = KLB_DATA_TYPE::FLOAT32_TYPE;
 		break;
 
 	case mxDOUBLE_CLASS:
-		imgIO.header.dataType = 9;
+		imgIO.header.dataType = KLB_DATA_TYPE::FLOAT64_TYPE;
 		break;
 
 	default:
@@ -174,7 +174,21 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 			}
 			if (mxIsEmpty(prhs[5]) == false)
 			{
-				imgIO.header.compressionType = (int)(mxGetPr(prhs[5])[0]);
+                
+                switch((int)(mxGetPr(prhs[5])[0]))
+                {
+                    case 0:
+                        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::NONE;
+                        break;
+                    case 1:
+                        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::BZIP2;
+                        break;
+                    case 2:
+                        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::ZLIB;
+                        break;
+                    default:
+                        mexErrMsgTxt("Compression type not supported");
+                }
 			}            
             break;
             
@@ -195,7 +209,20 @@ void mexFunction (int nlhs, mxArray *plhs[], int nrhs,const mxArray *prhs[])
 			}
 			if (mxIsEmpty(prhs[5]) == false)
 			{
-				imgIO.header.compressionType = (int)(mxGetPr(prhs[5])[0]);
+                switch((int)(mxGetPr(prhs[5])[0]))
+                {
+                    case 0:
+                        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::NONE;
+                        break;
+                    case 1:
+                        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::BZIP2;
+                        break;
+                    case 2:
+                        imgIO.header.compressionType = KLB_COMPRESSION_TYPE::ZLIB;
+                        break;
+                    default:
+                        mexErrMsgTxt("Compression type not supported");
+                }				
 			} 
             
             if( mxIsEmpty(prhs[6]) == false )
