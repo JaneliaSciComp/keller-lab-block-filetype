@@ -13,19 +13,20 @@ public class NativeLibraryLoader {
      * @return platform-dependent resource path
      */
     public String getResourcePath(final String libraryName) {
-        String os = System.getProperty("os.name").toLowerCase();
-        String prefix, suffix;
+        String os = System.getProperty("os.name").replace(" ", "_").toLowerCase();
+        String prefix = "lib";
+        String suffix = ".so";
         final int windex = os.indexOf("windows");
         if (windex != -1) {
-            os = os.substring(windex, 7);
+            os = os.substring( windex, 7 );
             prefix = "";
             suffix = "dll";
-        } else {
-            prefix = "lib";
-            suffix = "so";
+        } else if (os.contains("mac_os")) {
+            suffix = "dylib";
         }
         libFileName = String.format("%s%s.%s", prefix, libraryName, suffix);
-        return String.format("/native/%s-%s/%s", System.getProperty("os.arch"), os, libFileName);
+        final String arch = System.getProperty("os.arch").toLowerCase();
+        return String.format("/native/%s-%s/%s", arch, os, libFileName);
     }
 
     /**
