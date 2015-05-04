@@ -15,7 +15,7 @@ public class NativeLibraryLoader {
     public String getResourcePath(final String libraryName) {
         String os = System.getProperty("os.name").replace(" ", "_").toLowerCase();
         String prefix = "lib";
-        String suffix = ".so";
+        String suffix = "so";
         final int windex = os.indexOf("windows");
         if (windex != -1) {
             os = os.substring( windex, 7 );
