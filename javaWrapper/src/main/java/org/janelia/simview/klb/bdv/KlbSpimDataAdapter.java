@@ -128,7 +128,7 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
             }
         }
 
-        return new SpimData2( new File( basePath ), seq, new ViewRegistrations( registrations ), null );
+        return new SpimData2( new File( basePath ), seq, new ViewRegistrations( registrations ), null, null );
     }
 
     @Override
