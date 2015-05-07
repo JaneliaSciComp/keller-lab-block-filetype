@@ -8,6 +8,7 @@ import org.jdom2.Element;
 
 import java.io.File;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
 import static mpicbg.spim.data.XmlKeys.IMGLOADER_FORMAT_ATTRIBUTE_NAME;
@@ -73,6 +74,15 @@ public class XmlIoKlbImageLoader implements XmlIoBasicImgLoader< KlbImageLoader 
             final List< KlbMultiFileNameTag > tags = new ArrayList< KlbMultiFileNameTag >();
             for ( final Element e : elem.getChildren( "MultiFileNameTag" ) ) {
                 tags.add( nameTagFromXml( e ) );
+            }
+            if (tags.isEmpty()) {
+                final KlbMultiFileNameTag tag = new KlbMultiFileNameTag();
+                tag.tag = "";
+                tag.dimension = KlbMultiFileNameTag.Dimension.TIME;
+                tag.first = 0;
+                tag.last = 0;
+                tag.stride = 1;
+                tags.add( tag );
             }
 
             String[] arr = new String[ templates.size() ];
