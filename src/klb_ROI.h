@@ -36,7 +36,7 @@ public:
 	std::uint64_t getSizePixels() const
 	{
 		std::uint64_t size = xyzctUB[0] - xyzctLB[0] + 1;
-		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
+		for (int ii = 1; ii < KLB_DATA_DIMS; ii++)
 			size *= (xyzctUB[ii] - xyzctLB[ii] + 1);
 		return size;
 	};
