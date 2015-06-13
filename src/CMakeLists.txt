@@ -60,6 +60,13 @@ ADD_EXECUTABLE(speed_klbIO mainTestSpeed_klbIO.cxx)
 target_link_libraries (speed_klbIO klblib)
 ENDIF()
 
+#executable to test klblib library for large files
+IF( NOT TARGET large_files_klbIO)
+ADD_EXECUTABLE(large_files_klbIO mainTest_largeFiles_klbIO.cxx)
+target_link_libraries (large_files_klbIO klblib)
+ENDIF()
+
+
 IF( CMAKE_COMPILER_IS_GNUCC )
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
 ENDIF()
