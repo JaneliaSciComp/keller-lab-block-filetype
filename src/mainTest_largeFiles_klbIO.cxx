@@ -3,12 +3,12 @@
 * See license.txt for full license and copyright notice.
 *
 * Authors: Fernando Amat
-*  mainTestSpeed_klnIO.cxx
+*  mainTest_largeFiles_klnIO.cxx
 *
-*  Created on: October 1st, 2014
+*  Created on: June 13th, 2015
 *      Author: Fernando Amat
 *
-* \brief Test the main klb I/O library
+* \brief Test read and write of large files
 *
 *
 */
@@ -26,6 +26,9 @@
 using namespace std;
 typedef std::chrono::high_resolution_clock Clock;
 
+typedef float imgType;
+#define dataTypeDef KLB_DATA_TYPE::FLOAT32_TYPE 
+
 int main(int argc, const char** argv)
 {
 	int numProg = -1;
@@ -37,10 +40,10 @@ int main(int argc, const char** argv)
 	KLB_COMPRESSION_TYPE compressionType = KLB_COMPRESSION_TYPE::BZIP2;//1->bzip2; 0->none (look at enum KLB_COMPRESSION_TYPE)
 
 
-	std::string basename("E:/temp/mouse_TM000000_angle000");
-	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 2048, 2048, 335, 1, 1 };	
+	std::string basename("E:/temp/simview3_TM2_LR_iter00015");
+	std::uint32_t	xyzct[KLB_DATA_DIMS] = { 768, 1848, 568, 1, 1 };
 	
-	cout << "Testing KLB speed with file " << basename << ".raw and blockSize =";
+	cout << "Testing KLB large files capability with file " << basename << ".raw and blockSize =";
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		cout << blockSize[ii] << "x";
 	cout <<" with "<<numThreads<< "threads"<< endl;
@@ -55,7 +58,7 @@ int main(int argc, const char** argv)
 	klb_imageIO imgXYplane(filenameOut);
 	long long int totalTime = 0;
 	int numPlanes;
-	uint16_t* imgB;
+	imgType* imgB;
 	klb_ROI ROIfull;
 	//=========================================================================
 
@@ -63,7 +66,7 @@ int main(int argc, const char** argv)
 	if (numProg >= 0)
 	{
 		char buffer[256];
-		sprintf(buffer, "D:/temp/testKLB_cpp%.3d.klb", numProg);
+		sprintf(buffer, "E:/temp/testKLB_cpp%.3d.klb", numProg);
 		filenameOut = string(buffer);
 	}
 	
@@ -74,16 +77,16 @@ int main(int argc, const char** argv)
 	//setup header
 	memcpy(imgIO.header.xyzct, xyzct, sizeof(uint32_t)* KLB_DATA_DIMS);
 	memcpy(imgIO.header.blockSize, blockSize, sizeof(uint32_t)* KLB_DATA_DIMS);
-	imgIO.header.dataType = KLB_DATA_TYPE::UINT16_TYPE;//uint16
+	imgIO.header.dataType = dataTypeDef;//uint16
 	imgIO.header.compressionType = compressionType;
 	for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		imgIO.header.pixelSize[ii] = 1.2f*(ii+1);
 
 
 	//read image
-	uint16_t* img = new uint16_t[imgIO.header.getImageSizePixels()];
+	imgType* img = new imgType[imgIO.header.getImageSizePixels()];
 	ifstream fim(string(basename + ".raw").c_str(), ios::binary | ios::in);
-	fim.read((char*)img, sizeof(uint16_t)* imgIO.header.getImageSizePixels());
+	fim.read((char*)img, sizeof(imgType)* imgIO.header.getImageSizePixels());
 
 	t1 = Clock::now();
 	err = imgIO.writeImage((char*)img, numThreads);//all the threads available
@@ -109,7 +112,7 @@ int main(int argc, const char** argv)
 	err = imgFull.readHeader();
 	if (err > 0)
 		return err;
-	uint16_t* imgA = new uint16_t[imgFull.header.getImageSizePixels()];
+	imgType* imgA = new imgType[imgFull.header.getImageSizePixels()];
 
 	//ROIfull.defineFullImage(imgFull.header.xyzct);
 	//err = imgFull.readImage((char*)imgA, &ROIfull, numThreads);
@@ -120,6 +123,24 @@ int main(int argc, const char** argv)
 	t2 = Clock::now();
 
 	std::cout << "Read full test file at " << filenameOut << " in =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using " << numThreads << " threads" << std::endl;
+	
+	
+	//compare elements
+	bool isEqual = true;
+	for (uint64_t ii = 0; ii < imgFull.header.getImageSizePixels(); ii++)
+	{
+		if (imgA[ii] != img[ii])
+		{
+			cout << "ii = " << ii << ";imgOrig = " << img[ii] << "; imgKLB = " << imgA[ii] << endl;
+			isEqual = false;
+			break;
+		}
+	}
+	if (!isEqual)
+	{
+		cout << "ERROR!!!: images are different" << endl;
+		return 3;
+	}
 	delete[] imgA;
 
 	return 0;
@@ -142,18 +163,37 @@ int main(int argc, const char** argv)
 	err = imgXYplane.readHeader();
 	if (err > 0)
 		return err;
-	imgB = new uint16_t[planeSize];
+	imgB = new imgType[planeSize];
 
 	
 	totalTime = 0; 
 	numPlanes = std::min(imgXYplane.header.xyzct[dim], 10U);
 	t1 = Clock::now();
-	for (int ii = 0; ii < numPlanes; ii++)
+	for (int ii = imgXYplane.header.xyzct[2] - numPlanes; ii < imgXYplane.header.xyzct[2]; ii++)
 	{		
 		ROIfull.defineSlice(ii, dim, imgXYplane.header.xyzct);
 		err = imgXYplane.readImage((char*)imgB, &ROIfull, numThreads);
 		if (err > 0)
 			return err;		
+
+
+		//compare elements
+		bool isEqual = true;
+		uint64_t count = ii * planeSize;
+		for (uint64_t jj = 0; jj < planeSize; jj++)
+		{
+			if (imgB[jj] != img[count])
+			{
+				isEqual = false;
+				break;
+			}
+			count += offsetPlane;
+		}
+		if (isEqual == false)
+		{
+			cout << "ERROR!!!: images are different for plane " << ii << endl;
+			break;
+		}
 	}	
 
 	t2 = Clock::now();
@@ -174,19 +214,41 @@ int main(int argc, const char** argv)
 	dim = 1;
 	planeSize = imgXYplane.header.xyzct[0] * imgXYplane.header.xyzct[2];
 
-	imgB = new uint16_t[planeSize];
+	imgB = new imgType[planeSize];
 
 
 	totalTime = 0;
 	numPlanes = std::min(imgXYplane.header.xyzct[dim], 10U);
 	t1 = Clock::now();
-	for (int ii = 0; ii < numPlanes; ii++)
+	for (int ii = imgXYplane.header.xyzct[1] - numPlanes; ii < imgXYplane.header.xyzct[1]; ii++)
 	{
 		
 		ROIfull.defineSlice(ii, dim, imgXYplane.header.xyzct);
 		err = imgXYplane.readImage((char*)imgB, &ROIfull, numThreads);
 		if (err > 0)
-			return err;		
+			return err;	
+
+		//compare elements
+		bool isEqual = true;
+		int count = 0;
+		for (uint64_t zz = 0; zz < imgXYplane.header.xyzct[2]; zz++)
+		{
+			for (uint64_t xx = 0; xx < imgXYplane.header.xyzct[0]; xx++)
+			{
+				if (imgB[count++] != img[xx + ii * (uint64_t)(imgXYplane.header.xyzct[0]) + (uint64_t)(imgXYplane.header.xyzct[0] * imgXYplane.header.xyzct[1]) * zz])
+				{
+					isEqual = false;
+					break;
+				}
+			}
+			if (isEqual == false)
+				break;
+		}
+		if (isEqual == false)
+		{
+			cout << "ERROR!!!: images are different for plane " << ii << " at position " << count << endl;
+			break;
+		}
 	}
 
 	t2 = Clock::now();
@@ -208,18 +270,40 @@ int main(int argc, const char** argv)
 	dim = 0;
 	planeSize = imgXYplane.header.xyzct[1] * imgXYplane.header.xyzct[2];
 
-	imgB = new uint16_t[planeSize];
+	imgB = new imgType[planeSize];
 
 
 	totalTime = 0;
 	numPlanes = std::min( imgXYplane.header.xyzct[dim], 10U);
 	t1 = Clock::now();
-	for (int ii = 0; ii < numPlanes; ii++)
+	for (int ii = imgXYplane.header.xyzct[0] - numPlanes; ii < imgXYplane.header.xyzct[0]; ii++)
 	{
 		ROIfull.defineSlice(ii, dim, imgXYplane.header.xyzct);
 		err = imgXYplane.readImage((char*)imgB, &ROIfull, numThreads);
 		if (err > 0)
 			return err;
+
+		//compare elements
+		bool isEqual = true;
+		int count = 0;
+		for (uint64_t zz = 0; zz < imgXYplane.header.xyzct[2]; zz++)
+		{
+			for (uint64_t yy = 0; yy < imgXYplane.header.xyzct[1]; yy++)
+			{
+				if (imgB[count++] != img[ii + yy * (uint64_t)(imgXYplane.header.xyzct[0]) + (uint64_t)(imgXYplane.header.xyzct[0] * imgXYplane.header.xyzct[1]) * zz])
+				{
+					isEqual = false;
+					break;
+				}
+			}
+			if (isEqual == false)
+				break;
+		}
+		if (isEqual == false)
+		{
+			cout << "ERROR!!!: images are different for plane " << ii << endl;
+			break;
+		}
 	}
 
 	t2 = Clock::now();
