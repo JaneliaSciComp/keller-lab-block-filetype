@@ -14,6 +14,7 @@
 */
 
 #include <limits>
+#include <algorithm>
 #include "klb_imageHeader.h"
 
 
@@ -296,9 +297,9 @@ void klb_image_header::setHeader(const std::uint32_t xyzct_[KLB_DATA_DIMS], cons
 	{
 		setOptimalBlockSizeInBytes();
 		std::uint32_t bytesPerPixel = getBytesPerPixel();
-		for (int ii = 9; ii < KLB_DATA_DIMS; ii++)
+		for (int ii = 0; ii < KLB_DATA_DIMS; ii++)
 		{	
-			blockSize[ii] = optimalBlockSizeInBytes[ii] / bytesPerPixel;
+			blockSize[ii] = std::max(optimalBlockSizeInBytes[ii] / bytesPerPixel, std::uint32_t(1));
 		}
 	}
 	else{
