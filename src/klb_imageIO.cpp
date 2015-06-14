@@ -28,7 +28,10 @@
 #include "zlib.h"
 
 
-
+#if defined(_WIN32) || defined(_WIN64)
+//in windows long int is 32 bit, so fseek cannot read large files
+	#define fseek _fseeki64
+#endif
 
 //#define DEBUG_PRINT_THREADS
 typedef std::chrono::high_resolution_clock Clock;
@@ -989,6 +992,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 		sizeCompressed = header.getBlockCompressedSizeBytes(blockId_t);
 		offset = header.getBlockOffset(blockId_t);
 
+
 		fseek(fid, offsetHeaderBytes + offset, SEEK_SET);
 		fread(bufferFile, 1, sizeCompressed, fid);
 
@@ -1005,7 +1009,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 				   int ret = BZ2_bzBuffToBuffDecompress(bufferIn, &gcount, bufferFile, sizeCompressed, 0, 0);
 				   if (ret != BZ_OK)
 				   {
-					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << std::endl;
+					   std::cout << "ERROR: workerfunc: decompressing data at block " << blockId_t << " with offset " << offsetHeaderBytes + offset << std::endl;
 					   *errFlag = 2;
 					   gcount = 0;
 				   }
@@ -1121,7 +1125,7 @@ void klb_imageIO::blockWriter(FILE* fout, int* g_blockSize, int* g_blockThreadId
 	std::uint64_t numBlocks = header.getNumBlocks();
 	header.resizeBlockOffset(numBlocks);//just in case it has not been setup
 
-#define USE_MEM_BUFFER_WRITE //uncomment this line to use a large memory buffer before writing to file. It is slower since C++ write already buffers ofstream before flushing. However using C interface (FILE* it is faster)
+#define USE_MEM_BUFFER_WRITE //uncomment this line to use a large memory buffer before writing to file. It is slower since C++ write already buffers ofstream before flushing. However using C interface (FILE*) it is faster)
 
 #ifdef USE_MEM_BUFFER_WRITE
 	//buffer to avoid writing to disk all the time

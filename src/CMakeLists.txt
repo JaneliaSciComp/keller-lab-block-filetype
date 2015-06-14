@@ -12,6 +12,9 @@ IF( NOT MSVC )
     SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -fPIC -pthread")
 ENDIF()
 
+#add definition to handle large files
+add_definitions(-D_FILE_OFFSET_BITS=64)
+
 #add bzip2 library
 include_directories ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
 add_subdirectory ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")

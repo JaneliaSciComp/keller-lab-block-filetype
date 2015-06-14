@@ -54,10 +54,10 @@ int main(int argc, const char** argv)
 	int err = 0;
 	auto t1 = Clock::now();
 	auto t2 = Clock::now();
-	int dim, planeSize, offsetPlane;
+	int64_t dim, planeSize, offsetPlane;
 	klb_imageIO imgXYplane(filenameOut);
 	long long int totalTime = 0;
-	int numPlanes;
+	int64_t numPlanes;
 	imgType* imgB;
 	klb_ROI ROIfull;
 	//=========================================================================
@@ -97,7 +97,6 @@ int main(int argc, const char** argv)
 
 	std::cout << "Written test file at "<<filenameOut<<" compress + write file =" << std::chrono::duration_cast<std::chrono::milliseconds>(t2 - t1).count() << " ms using "<<numThreads<<" threads"<< std::endl;
 
-	delete[] img;
 		
 
 	//===========================================================================================
@@ -143,10 +142,10 @@ int main(int argc, const char** argv)
 	}
 	delete[] imgA;
 
-	return 0;
 	
 	//===========================================================================================
 	//===========================================================================================
+	
 	
 	cout << endl << endl << "Reading XY planes" << endl;
 
@@ -164,12 +163,13 @@ int main(int argc, const char** argv)
 	if (err > 0)
 		return err;
 	imgB = new imgType[planeSize];
-
+	
 	
 	totalTime = 0; 
 	numPlanes = std::min(imgXYplane.header.xyzct[dim], 10U);
 	t1 = Clock::now();
-	for (int ii = imgXYplane.header.xyzct[2] - numPlanes; ii < imgXYplane.header.xyzct[2]; ii++)
+	for (int64_t ii = imgXYplane.header.xyzct[dim] - numPlanes; ii < imgXYplane.header.xyzct[dim]-1; ii++)
+	//for (int64_t ii = 0; ii < numPlanes; ii++)
 	{		
 		ROIfull.defineSlice(ii, dim, imgXYplane.header.xyzct);
 		err = imgXYplane.readImage((char*)imgB, &ROIfull, numThreads);
@@ -193,6 +193,9 @@ int main(int argc, const char** argv)
 		{
 			cout << "ERROR!!!: images are different for plane " << ii << endl;
 			break;
+		}
+		else{
+			cout << "Read plane " << ii << " successfully" << endl;
 		}
 	}	
 
@@ -220,7 +223,7 @@ int main(int argc, const char** argv)
 	totalTime = 0;
 	numPlanes = std::min(imgXYplane.header.xyzct[dim], 10U);
 	t1 = Clock::now();
-	for (int ii = imgXYplane.header.xyzct[1] - numPlanes; ii < imgXYplane.header.xyzct[1]; ii++)
+	for (int64_t ii = imgXYplane.header.xyzct[dim] - numPlanes; ii < imgXYplane.header.xyzct[dim]-1; ii++)
 	{
 		
 		ROIfull.defineSlice(ii, dim, imgXYplane.header.xyzct);
@@ -249,6 +252,9 @@ int main(int argc, const char** argv)
 			cout << "ERROR!!!: images are different for plane " << ii << " at position " << count << endl;
 			break;
 		}
+		else{
+			cout << "Read plane " << ii << " successfully" << endl;
+		}
 	}
 
 	t2 = Clock::now();
@@ -276,7 +282,7 @@ int main(int argc, const char** argv)
 	totalTime = 0;
 	numPlanes = std::min( imgXYplane.header.xyzct[dim], 10U);
 	t1 = Clock::now();
-	for (int ii = imgXYplane.header.xyzct[0] - numPlanes; ii < imgXYplane.header.xyzct[0]; ii++)
+	for (int64_t ii = imgXYplane.header.xyzct[dim] - numPlanes; ii < imgXYplane.header.xyzct[dim]-1; ii++)
 	{
 		ROIfull.defineSlice(ii, dim, imgXYplane.header.xyzct);
 		err = imgXYplane.readImage((char*)imgB, &ROIfull, numThreads);
@@ -304,6 +310,9 @@ int main(int argc, const char** argv)
 			cout << "ERROR!!!: images are different for plane " << ii << endl;
 			break;
 		}
+		else{
+			cout << "Read plane " << ii << " successfully" << endl;
+		}
 	}
 
 	t2 = Clock::now();
@@ -315,6 +324,6 @@ int main(int argc, const char** argv)
 	//===========================================================================================
 	//===========================================================================================
 	
-
+	delete[] img;
 	return 0;
 }
