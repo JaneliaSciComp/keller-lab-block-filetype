@@ -72,6 +72,7 @@ ENDIF()
 
 IF( CMAKE_COMPILER_IS_GNUCC )
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
+	set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lstdc++")#so the C wrappers have access to std::threads
 ENDIF()
 
 IF( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" ) 

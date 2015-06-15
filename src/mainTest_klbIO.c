@@ -108,7 +108,7 @@ int main(int argc, const char** argv)
 	printf("Compressing file to %s using double pointer\n", filenameSlices);
 	
 	start = clock() / (CLOCKS_PER_SEC / 1000);	
-	err = writeKLBstackSlices((void**)imSlice, filenameSlices, xyzct, dataType, numThreads, NULL, blockSize, compressionType, metadata_);
+	err = writeKLBstackSlices((const void**)imSlice, filenameSlices, xyzct, dataType, numThreads, NULL, blockSize, compressionType, metadata_);
 
 	end = clock() / (CLOCKS_PER_SEC / 1000);
 	printf("Took %ld ms\n", end-start);
