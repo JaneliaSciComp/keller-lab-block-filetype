@@ -293,14 +293,18 @@ public class KlbPartitionResolverDefault implements KlbPartitionResolver
         roi.setXyzctLB( new long[]{ min[ 0 ], min[ 1 ], min[ 2 ], 0, 0 } );
     }
 
-    private String getFilePath( final int timePoint, final int viewSetup, final int level )
+    protected String getFilePath( final int timePoint, final int viewSetup, final int level )
     {
         String fn = viewSetupTemplates[ viewSetup ];
         if ( timeMatch != null ) {
             fn = fn.replaceAll( timeMatch, String.format( timeFormat, timePoint ) );
         }
-        if ( level > 0 && resLvlMatch != null ) {
-            fn = fn.replaceAll( resLvlMatch, String.format( resLvlFormat, level ) );
+        if ( resLvlMatch != null ) {
+            if (level == 0) {
+                fn = fn.replace( "." + resLvlMatch, "" );
+            } else {
+                fn = fn.replaceAll( resLvlMatch, String.format( resLvlFormat, level ) );
+            }
         }
         return fn;
     }
