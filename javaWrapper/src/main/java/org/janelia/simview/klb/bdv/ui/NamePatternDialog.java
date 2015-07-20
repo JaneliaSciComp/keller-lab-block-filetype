@@ -131,7 +131,10 @@ public class NamePatternDialog extends JDialog implements ActionListener
             final JFileChooser chooser = new JFileChooser( filePathPanel.getFilePath() );
             chooser.setFileSelectionMode( JFileChooser.FILES_ONLY );
             if ( chooser.showSaveDialog( this ) == JFileChooser.APPROVE_OPTION ) {
-                final String filePath = chooser.getSelectedFile().getAbsolutePath();
+                String filePath = chooser.getSelectedFile().getAbsolutePath();
+                if (!filePath.endsWith( ".xml" )) {
+                    filePath += ".xml";
+                }
                 final KlbSpimDataAdapter spimData = new KlbSpimDataAdapter( getResolver() );
                 try {
                     spimData.writeXML( filePath );
