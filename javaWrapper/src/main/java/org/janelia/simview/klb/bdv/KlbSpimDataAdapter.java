@@ -44,14 +44,13 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
     @Override
     public SpimData2 createDataset()
     {
-        final String basePath = "";
-
         final String[] setups = new String[ resolver.getNumViewSetups() ];
         for ( int i = 0; i < setups.length; ++i ) {
             setups[ i ] = resolver.getViewSetupName( i );
         }
 
         final HashMap< Integer, ViewSetup > setupMap = new HashMap< Integer, ViewSetup >();
+        int timePoint = resolver.getLastTimePoint();
         final long[] dimensions = new long[ 3 ];
         final double[] sampling = new double[ 3 ];
         for ( int s = 0; s < setups.length; ++s ) {
@@ -61,7 +60,6 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
             // case the image volume is growing over time.
             // Currently, we are assuming a constant image size, and same
             // sampling and number of resolution levels for all channelIds.
-            int timePoint = resolver.getLastTimePoint();
             for (; timePoint >= resolver.getFirstTimePoint(); --timePoint ) {
                 if ( resolver.getImageDimensions( timePoint, s, 0, dimensions ) ) {
                     break;
@@ -108,7 +106,7 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
         final HashMap< ViewId, ViewRegistration > registrations = new HashMap< ViewId, ViewRegistration >();
         for ( final ViewSetup setup : seq.getViewSetupsOrdered() ) {
             final int id = setup.getId();
-            resolver.getSampling( 0, id, 0, sampling );
+            resolver.getSampling( timePoint, id, 0, sampling );
             final double min = Math.min( Math.min( sampling[ 0 ], sampling[ 1 ] ), sampling[ 2 ] );
             for ( int d = 0; d < sampling.length; ++d ) {
                 sampling[ d ] /= min;
@@ -128,7 +126,7 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
             }
         }
 
-        return new SpimData2( new File( basePath ), seq, new ViewRegistrations( registrations ), null, null );
+        return new SpimData2( new File( System.getProperty( "user.home" ) ), seq, new ViewRegistrations( registrations ), null, null );
     }
 
     @Override
@@ -147,7 +145,9 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
     public void writeXML( final String filePath ) throws SpimDataException
     {
         // new XmlIoSpimDataMinimal().save( getSpimDataMinimal(), filePath );
-        new XmlIoSpimData().save( createDataset(), filePath );
+        final SpimData2 data = createDataset();
+        data.setBasePath( new File( filePath ).getParentFile() );
+        new XmlIoSpimData().save( data, filePath );
     }
 
     //    public SpimDataMinimal getSpimDataMinimal()
