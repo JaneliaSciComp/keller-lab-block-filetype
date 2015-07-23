@@ -69,5 +69,21 @@ public class KlbDebugMain {
                 }
             }
         }
+
+        String outFilePath = System.getProperty( "user.home" ) + File.separator + "testout.klb";
+        System.out.format( "\nWriting test image to %s\n", outFilePath );
+        System.out.format( "You should delete this file manually.");
+
+        Writer writer = scifio.initializer().initializeWriter( meta, outFilePath );
+        for ( int i = 0; i < reader.getImageCount(); ++i ) {
+            for ( int p = 0; p < reader.getPlaneCount( i ); ++p ) {
+                writer.savePlane( i, p, reader.openPlane( i, p ) );
+            }
+        }
+
+        reader.close();
+        writer.close();
+
+        System.out.println( "Done." );
     }
 }
