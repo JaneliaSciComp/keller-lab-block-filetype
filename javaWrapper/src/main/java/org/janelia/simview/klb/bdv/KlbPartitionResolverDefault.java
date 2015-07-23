@@ -299,9 +299,12 @@ public class KlbPartitionResolverDefault implements KlbPartitionResolver
         if ( timeMatch != null ) {
             fn = fn.replaceAll( timeMatch, String.format( timeFormat, timePoint ) );
         }
-        if ( resLvlMatch != null ) {
-            if (level == 0) {
-                fn = fn.replace( "." + resLvlMatch, "" );
+
+        if (level == 0 && resLvlMatch != null) {
+            fn = fn.replace( "." + resLvlMatch, "" );
+        } else if (level > 0) {
+            if (resLvlMatch == null) {
+                fn = fn.substring( 0, fn.lastIndexOf( ".klb" ) ) + String.format( ".RESLVL%d.klb", level );
             } else {
                 fn = fn.replaceAll( resLvlMatch, String.format( resLvlFormat, level ) );
             }
