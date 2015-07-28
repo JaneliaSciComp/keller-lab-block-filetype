@@ -152,8 +152,8 @@ public class KlbImageLoader
 
         final long[] imageDimensions = new long[ 3 ];
         final int[] blockDimensions = new int[ 3 ];
-        resolver.getImageDimensions( timePoint, viewSetup, 0, imageDimensions );
-        resolver.getBlockDimensions( timePoint, viewSetup, 0, blockDimensions );
+        resolver.getImageDimensions( timePoint, viewSetup, level, imageDimensions );
+        resolver.getBlockDimensions( timePoint, viewSetup, level, blockDimensions );
 
         final int priority = resolver.getNumResolutionLevels( viewSetup ) - 1 - level;
         final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
