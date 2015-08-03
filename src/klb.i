@@ -1,3 +1,6 @@
+// SWIG command to generate JNI wrappers:
+// swig -c++ -java -package org.janelia.simview.klb.jni -outdir ../javaWrapper/src/main/java/org/janelia/simview/klb/jni/ -o klb_jni.cxx -oh klb_jni.h klb.i
+
 %module Klb
 
 %include "typemaps.i"

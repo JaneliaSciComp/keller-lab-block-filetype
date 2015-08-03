@@ -87,18 +87,12 @@ ENDIF()
 
 option(BINDINGS_JAVA "Build bindings for Java" off)
 if(BINDINGS_JAVA)
-    find_package(SWIG REQUIRED)
     find_package(JNI REQUIRED)
-    include(${SWIG_USE_FILE})
-
-    set_source_files_properties(klb.i PROPERTIES CPLUSPLUS ON)
-    set(CMAKE_SWIG_FLAGS -package org.janelia.simview.klb.jni)
-	set(CMAKE_SWIG_OUTDIR ${PROJECT_BINARY_DIR}/java/org/janelia/simview/klb/jni)
-
-    include_directories (${PROJECT_SOURCE_DIR} ${JNI_INCLUDE_DIRS})
-    link_directories(${PROJECT_BINARY_DIR} ${JNI_LIBRARY_DIRS})
-    swig_add_module(klb-jni java klb.i)
-    swig_link_libraries(klb-jni klblibs)
+    include_directories (${JNI_INCLUDE_DIRS})
+    link_directories(${JNI_LIBRARY_DIRS})
+    ADD_LIBRARY(klb-jni SHARED ${KLB_SRCS} ${KLB_HDRS} klb_jni.cxx)
+    target_link_libraries (klb-jni bz2lib zlibstatic)
+    set_property(TARGET klb-jni PROPERTY COMPILE_DEFINITIONS COMPILE_SHARED_LIBRARY)
 endif()
 
 
