@@ -263,7 +263,7 @@ public class KlbPartitionResolverDefault implements KlbPartitionResolver
     @Override
     public boolean getSampling( final int timePoint, final int viewSetup, final int level, final double[] out )
     {
-        if ( sampling != null ) {
+        if ( level == 0 && sampling != null ) {
             out[ 0 ] = sampling[ level ][ 0 ];
             out[ 1 ] = sampling[ level ][ 1 ];
             out[ 2 ] = sampling[ level ][ 2 ];
