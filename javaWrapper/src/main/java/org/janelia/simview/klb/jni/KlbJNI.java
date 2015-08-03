@@ -84,7 +84,6 @@ public class KlbJNI {
     static {
         final NativeLibraryLoader loader = new NativeLibraryLoader();
         try {
-            loader.unpackAndLoadFromResources("klb");
             loader.unpackAndLoadFromResources("klb-jni");
         } catch (UnsatisfiedLinkError e1) {
             try {
@@ -94,7 +93,6 @@ public class KlbJNI {
                 // Try again, this time loading the runtime libs first.
                 loader.unpackAndLoadFromResources("msvcr120");
                 loader.unpackAndLoadFromResources("msvcp120");
-                loader.unpackAndLoadFromResources("klb");
                 loader.unpackAndLoadFromResources("klb-jni");
             } catch (Throwable e2) {
                 throw new UnsatisfiedLinkError("[KLB] Failed to unpack or load native KLB libraries.\n" + e2.getMessage());
