@@ -5,6 +5,7 @@ import bdv.img.cache.*;
 import bdv.img.cache.VolatileImgCells.CellCache;
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
 import mpicbg.spim.data.sequence.ImgLoader;
+import mpicbg.spim.data.sequence.TimePoint;
 import mpicbg.spim.data.sequence.ViewId;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.*;
@@ -33,6 +34,8 @@ public class KlbImageLoader
     private final AbstractSequenceDescription< ?, ?, ? > sequenceDescription;
     private final Map< Integer, double[][] > mipMapResolutionMap = new HashMap< Integer, double[][] >();
     private final Map< Integer, AffineTransform3D[] > mipMapTransformMap = new HashMap< Integer, AffineTransform3D[] >();
+    private final long[] imageDimensions = new long[ 3 ];
+    private int[] blockDimensions = null;
 
     private VolatileGlobalCellCache< VolatileShortArray > cache;
 
@@ -149,11 +152,18 @@ public class KlbImageLoader
     {
         final int timePoint = view.getTimePointId();
         final int viewSetup = view.getViewSetupId();
-
-        final long[] imageDimensions = new long[ 3 ];
-        final int[] blockDimensions = new int[ 3 ];
-        resolver.getImageDimensions( timePoint, viewSetup, level, imageDimensions );
-        resolver.getBlockDimensions( timePoint, viewSetup, level, blockDimensions );
+        sequenceDescription.getViewSetups().get( viewSetup ).getSize().dimensions( imageDimensions );
+        if ( blockDimensions == null ) {
+            blockDimensions = new int[ 3 ];
+            if ( !resolver.getBlockDimensions( timePoint, viewSetup, level, blockDimensions ) ) {
+                final Map< Integer, TimePoint > timePoints = sequenceDescription.getTimePoints().getTimePoints();
+                for ( final Integer t : timePoints.keySet() ) {
+                    if ( resolver.getBlockDimensions( timePoints.get( t ).getId(), viewSetup, level, blockDimensions ) ) {
+                        break;
+                    }
+                }
+            }
+        }
 
         final int priority = resolver.getNumResolutionLevels( viewSetup ) - 1 - level;
         final CacheHints cacheHints = new CacheHints( loadingStrategy, priority, false );
