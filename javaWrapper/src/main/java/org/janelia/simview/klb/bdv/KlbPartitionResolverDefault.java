@@ -4,6 +4,7 @@ import org.janelia.simview.klb.jni.KlbImageHeader;
 import org.janelia.simview.klb.jni.KlbImageIO;
 import org.janelia.simview.klb.jni.KlbRoi;
 
+import java.io.File;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -167,7 +168,7 @@ public class KlbPartitionResolverDefault implements KlbPartitionResolver
     @Override
     public String getViewSetupName( final int viewSetup )
     {
-        return viewSetupTemplates[ viewSetup ];
+        return new File(viewSetupTemplates[ viewSetup ]).getName().replace( ".klb", "" );
     }
 
     @Override
