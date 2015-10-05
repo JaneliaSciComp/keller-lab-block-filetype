@@ -14,7 +14,7 @@ public class KlbVolatileShortArrayLoader implements CacheArrayLoader< VolatileSh
     public KlbVolatileShortArrayLoader( final KlbPartitionResolver resolver )
     {
         this.resolver = resolver;
-        theEmptyArray = new VolatileShortArray( 1, false );
+        theEmptyArray = new VolatileShortArray( 96 * 96 * 8, false );
     }
 
     @Override
