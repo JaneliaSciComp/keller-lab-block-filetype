@@ -60,11 +60,17 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
             // case the image volume is growing over time.
             // Currently, we are assuming a constant image size, and same
             // sampling and number of resolution levels for all channelIds.
+            boolean dimensionsRead = false;
             for (; timePoint >= resolver.getFirstTimePoint(); --timePoint ) {
-                if ( resolver.getImageDimensions( timePoint, s, 0, dimensions ) ) {
+                dimensionsRead = resolver.getImageDimensions( timePoint, s, 0, dimensions );
+                if ( dimensionsRead ) {
                     break;
                 }
             }
+            if ( !dimensionsRead ) {
+                throw new IllegalArgumentException( "Could not determine image dimensions for ViewSetup " + s + "." );
+            }
+
             resolver.getSampling( timePoint, s, 0, sampling );
             setupMap.put( s, new ViewSetup(
                     s, setups[ s ],
