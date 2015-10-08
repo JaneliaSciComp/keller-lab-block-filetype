@@ -5,6 +5,9 @@ import net.imglib2.img.basictypeaccess.volatiles.array.VolatileShortArray;
 import org.janelia.simview.klb.jni.KlbImageIO;
 import org.janelia.simview.klb.jni.KlbRoi;
 
+import java.nio.ByteBuffer;
+import java.nio.ByteOrder;
+
 public class KlbVolatileShortArrayLoader implements CacheArrayLoader< VolatileShortArray >
 {
 
@@ -52,26 +55,23 @@ public class KlbVolatileShortArrayLoader implements CacheArrayLoader< VolatileSh
     {
         final KlbImageIO io = new KlbImageIO();
         final KlbRoi roi = new KlbRoi();
-
-        final short[] data = new short[ dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
-
+        final ByteBuffer bytes = ByteBuffer.allocate( 2 * dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] );
+        bytes.order( ByteOrder.LITTLE_ENDIAN );
         resolver.set( timePoint, viewSetup, level, dimensions, offset, io, roi );
-        final byte[] bytes = new byte[ 2 * dimensions[ 0 ] * dimensions[ 1 ] * dimensions[ 2 ] ];
-        if ( io.readImage( bytes, roi, 1 ) == 0 ) {
-            for ( int i = 0, j = -1; i < data.length; ++i ) {
-                data[ i ] = ( short ) ((bytes[ ++j ] & 0xff) | ((bytes[ ++j ] & 0xff) << 8));
-            }
+        if ( io.readImage( bytes.array(), roi, 1 ) == 0 ) {
+            final short[] shorts = new short[ bytes.limit() / 2 ];
+            bytes.asShortBuffer().get( shorts );
+            return new VolatileShortArray( shorts, true );
         }
-
-        return new VolatileShortArray( data, true );
+        return new VolatileShortArray( bytes.limit() / 2, true );
     }
 
     @Override
     public VolatileShortArray emptyArray( final int[] dimensions )
     {
         int numEntities = 1;
-        for ( int i = 0; i < dimensions.length; ++i )
-            numEntities *= dimensions[ i ];
+        for ( int d : dimensions )
+            numEntities *= d;
         if ( theEmptyArray.getCurrentStorageArray().length < numEntities )
             theEmptyArray = new VolatileShortArray( numEntities, false );
         return theEmptyArray;
