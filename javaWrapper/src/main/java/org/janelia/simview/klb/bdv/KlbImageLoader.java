@@ -18,6 +18,7 @@ import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Fraction;
 import net.imglib2.view.Views;
+import spim.Threads;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -51,7 +52,7 @@ public class KlbImageLoader
                 numTimePoints,
                 resolver.getNumViewSetups(),
                 resolver.getMaxNumResolutionLevels(),
-                Runtime.getRuntime().availableProcessors()
+                Threads.numThreads()
         );
     }
 
@@ -153,7 +154,7 @@ public class KlbImageLoader
         final int timePoint = view.getTimePointId();
         final int viewSetup = view.getViewSetupId();
         sequenceDescription.getViewSetups().get( viewSetup ).getSize().dimensions( imageDimensions );
-        if ( blockDimensions[0] == 0 ) {
+        if ( blockDimensions[ 0 ] == 0 ) {
             if ( !resolver.getBlockDimensions( timePoint, viewSetup, level, blockDimensions ) ) {
                 final Map< Integer, TimePoint > timePoints = sequenceDescription.getTimePoints().getTimePoints();
                 for ( final Integer t : timePoints.keySet() ) {
