@@ -10,13 +10,17 @@ import mpicbg.spim.data.sequence.ViewId;
 import mpicbg.spim.data.sequence.VoxelDimensions;
 import net.imglib2.*;
 import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.basictypeaccess.volatiles.array.VolatileShortArray;
+import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.realtransform.AffineTransform3D;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.integer.UnsignedShortType;
 import net.imglib2.type.numeric.real.FloatType;
 import net.imglib2.type.volatiles.VolatileUnsignedShortType;
 import net.imglib2.util.Fraction;
+import net.imglib2.util.Intervals;
 import net.imglib2.view.Views;
 import spim.Threads;
 
@@ -173,15 +177,27 @@ public class KlbImageLoader
         return img;
     }
 
-    // This function was copied from bdv.img.hdf5.Hdf5ImageLoader by Tobias Pietzsch et al.
+    // This function was adapted from bdv.img.hdf5.Hdf5ImageLoader by Tobias Pietzsch et al.
     @Override
     public RandomAccessibleInterval< FloatType > getFloatImage( final ViewId view, final boolean normalize )
     {
         final RandomAccessibleInterval< UnsignedShortType > ushortImg = getImage( view, 0 );
 
         // copy unsigned short img to float img
+
+        // create float img
         final FloatType f = new FloatType();
-        final Img< FloatType > floatImg = net.imglib2.util.Util.getArrayOrCellImgFactory( ushortImg, f ).create( ushortImg, f );
+        final ImgFactory< FloatType > imgFactory;
+        if ( Intervals.numElements( ushortImg ) <= Integer.MAX_VALUE ) {
+            imgFactory = new ArrayImgFactory< FloatType >();
+        } else {
+            final long[] dimsLong = new long[ ushortImg.numDimensions() ];
+            ushortImg.dimensions( dimsLong );
+            final int[] cellDimensions = new int[3];
+            resolver.getBlockDimensions( view.getTimePointId(), view.getViewSetupId(), 0, cellDimensions );
+            imgFactory = new CellImgFactory< FloatType >( cellDimensions );
+        }
+        final Img< FloatType > floatImg = imgFactory.create( ushortImg, f );
 
         // set up executor service
         final int numProcessors = Runtime.getRuntime().availableProcessors();
@@ -200,25 +216,45 @@ public class KlbImageLoader
             // the last thread may has to run longer if the number of pixels cannot be divided by the number of threads
             final long loopSize = (portionID == numPortions - 1) ? threadChunkSize + threadChunkMod : threadChunkSize;
 
-            tasks.add( new Callable< Void >()
-            {
-                @Override
-                public Void call() throws Exception
+            if ( Views.iterable( ushortImg ).iterationOrder().equals( floatImg.iterationOrder() ) ) {
+                tasks.add( new Callable< Void >()
                 {
-                    final Cursor< UnsignedShortType > in = Views.iterable( ushortImg ).localizingCursor();
-                    final RandomAccess< FloatType > out = floatImg.randomAccess();
+                    @Override
+                    public Void call() throws Exception
+                    {
+                        final Cursor< UnsignedShortType > in = Views.iterable( ushortImg ).cursor();
+                        final Cursor< FloatType > out = floatImg.cursor();
 
-                    in.jumpFwd( startPosition );
+                        in.jumpFwd( startPosition );
+                        out.jumpFwd( startPosition );
 
-                    for ( long j = 0; j < loopSize; ++j ) {
-                        final UnsignedShortType vin = in.next();
-                        out.setPosition( in );
-                        out.get().set( vin.getRealFloat() );
+                        for ( long j = 0; j < loopSize; ++j )
+                            out.next().set( in.next().getRealFloat() );
+
+                        return null;
                     }
+                } );
+            } else {
+                tasks.add( new Callable< Void >()
+                {
+                    @Override
+                    public Void call() throws Exception
+                    {
+                        final Cursor< UnsignedShortType > in = Views.iterable( ushortImg ).localizingCursor();
+                        final RandomAccess< FloatType > out = floatImg.randomAccess();
 
-                    return null;
-                }
-            } );
+                        in.jumpFwd( startPosition );
+
+                        for ( long j = 0; j < loopSize; ++j ) {
+                            final UnsignedShortType vin = in.next();
+                            out.setPosition( in );
+                            out.get().set( vin.getRealFloat() );
+                        }
+
+                        return null;
+                    }
+                } );
+            }
         }
 
         try {
