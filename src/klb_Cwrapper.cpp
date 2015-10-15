@@ -172,3 +172,32 @@ int readKLBstackInPlace(const char* filename, void* im, KLB_DATA_TYPE *dataType,
 
 	return err;
 }
+
+//===========================================================================================
+int readKLBroiInPlace(const char* filename, void* im, KLB_DATA_TYPE *dataType, uint32_t xyzctLB[KLB_DATA_DIMS], uint32_t xyzctUB[KLB_DATA_DIMS], int numThreads)
+{
+	std::string filenameOut(filename);
+
+	klb_imageIO img(filenameOut);
+
+	klb_ROI roi;
+	for (int d = 0; d < KLB_DATA_DIMS; d++)
+	{
+		roi.xyzctLB[d] = xyzctLB[d];
+		roi.xyzctUB[d] = xyzctUB[d];
+	}
+
+	int err = img.readHeader();
+	if (err > 0)
+		return err;
+
+	*dataType = img.header.dataType;	
+
+	err = img.readImage((char*)im, &roi, numThreads);
+	if (err > 0)
+	{
+		return err;
+	}
+
+	return err;
+}
