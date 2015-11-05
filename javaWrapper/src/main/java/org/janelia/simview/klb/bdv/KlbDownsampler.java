@@ -9,8 +9,8 @@ import mpicbg.spim.data.SpimDataException;
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
 import mpicbg.spim.data.generic.sequence.BasicImgLoader;
 import mpicbg.spim.data.generic.sequence.BasicViewSetup;
+import mpicbg.spim.data.generic.sequence.ImgLoaderHints;
 import mpicbg.spim.data.sequence.TimePoint;
-import mpicbg.spim.data.sequence.ViewId;
 import net.imglib2.Cursor;
 import net.imglib2.Dimensions;
 import net.imglib2.IterableInterval;
@@ -76,7 +76,7 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
             e.printStackTrace();
         }
 
-        if (data != null) {
+        if ( data != null ) {
             process( data.getSequenceDescription() );
         }
     }
@@ -113,8 +113,8 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
             for ( int level = 1; level < scales.length; ++level ) {  // scaling[0] is full sampling
                 for ( int dim = 0; dim < numDims; ++dim ) {
                     scales[ level ][ dim ] /= scales[ level - 1 ][ dim ];
-                    dims[   level ][ dim ]  = dims[   level - 1 ][ dim ] / scales[ level ][ dim ];
-                    smpl[   level ][ dim ]  = smpl[   level - 1 ][ dim ] * scales[ level ][ dim ];
+                    dims[ level ][ dim ] = dims[ level - 1 ][ dim ] / scales[ level ][ dim ];
+                    smpl[ level ][ dim ] = smpl[ level - 1 ][ dim ] * scales[ level ][ dim ];
                 }
             }
 
@@ -125,7 +125,7 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
 
 
         // correct results when skipping first downsampled level
-        if (skipFirst) {
+        if ( skipFirst ) {
             for ( final BasicViewSetup viewSetup : viewSetups ) {
                 final int viewSetupId = viewSetup.getId();
                 long[][] oldDims = dimensions.get( viewSetupId );
@@ -140,16 +140,16 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
                 double[][] newSmpl = new double[ numNewLevels ][ numDims ];
                 int[][] newScales = new int[ numNewLevels ][ numDims ];
 
-                System.arraycopy( oldDims[ 0 ],   0, newDims[ 0 ],   0, numDims );
-                System.arraycopy( oldSmpl[ 0 ],   0, newSmpl[ 0 ],   0, numDims );
+                System.arraycopy( oldDims[ 0 ], 0, newDims[ 0 ], 0, numDims );
+                System.arraycopy( oldSmpl[ 0 ], 0, newSmpl[ 0 ], 0, numDims );
                 System.arraycopy( oldScales[ 0 ], 0, newScales[ 0 ], 0, numDims );
 
-                for (int newLevel = 1; newLevel < numNewLevels; ++newLevel) {
+                for ( int newLevel = 1; newLevel < numNewLevels; ++newLevel ) {
                     final int oldLevel = newLevel + 1;
                     System.arraycopy( oldDims[ oldLevel ], 0, newDims[ newLevel ], 0, numDims );
                     System.arraycopy( oldSmpl[ oldLevel ], 0, newSmpl[ newLevel ], 0, numDims );
-                    if (newLevel == 1) {
-                        for (int d = 0; d < numDims; ++d) {
+                    if ( newLevel == 1 ) {
+                        for ( int d = 0; d < numDims; ++d ) {
                             newScales[ newLevel ][ d ] = oldScales[ oldLevel ][ d ] * oldScales[ newLevel ][ d ];
                         }
                     } else {
@@ -172,7 +172,7 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
             final long[][] dims = dimensions.get( viewSetupId );
             final double[][] smpl = sampling.get( viewSetupId );
             final int[][] scales = relativeScaling.get( viewSetupId );
-            for (int level = 0; level < dims.length; ++level) {
+            for ( int level = 0; level < dims.length; ++level ) {
                 log.info( String.format( "  Level %d image dimensions      %s", level, Arrays.toString( dims[ level ] ) ) );
                 log.info( String.format( "          sampling              %s", Arrays.toString( smpl[ level ] ) ) );
                 log.info( String.format( "          relative downsampling %s", Arrays.toString( scales[ level ] ) ) );
@@ -182,20 +182,8 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
 
         // downsample images
         log.info( "Starting downsampling" );
-        final T jType = ( T ) loader.getImageType();
-        KlbDataType cType = null;
-        switch (jType.getBitsPerPixel()) {
-            case 8:
-                cType = KlbDataType.UINT8_TYPE;
-                break;
-            case 16:
-                cType = KlbDataType.UINT16_TYPE;
-                break;
-        }
-
-        final ImgFactory< T > imageFactory = new ArrayImgFactory< T >();
-        final long[] klbDims = {0, 0, 0, 1, 1};
-        final float[] klbSampling = {1, 1, 1, 1, 1};
+        final long[] klbDims = { 0, 0, 0, 1, 1 };
+        final float[] klbSampling = { 1, 1, 1, 1, 1 };
         for ( final TimePoint tp : seq.getTimePoints().getTimePointsOrdered() ) {
             final int t = tp.getId();
             log.info( String.format( "Time point %d", t ) );
@@ -205,7 +193,18 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
                 final long[][] dims = dimensions.get( viewSetupId );
                 final double[][] smpl = sampling.get( viewSetupId );
 
-                RandomAccessibleInterval< T > currentImage = loader.getImage( new ViewId( t, viewSetupId ) );
+                final T jType = ( T ) loader.getSetupImgLoader( viewSetupId ).getImageType();
+                KlbDataType cType = null;
+                switch ( jType.getBitsPerPixel() ) {
+                    case 8:
+                        cType = KlbDataType.UINT8_TYPE;
+                        break;
+                    case 16:
+                        cType = KlbDataType.UINT16_TYPE;
+                        break;
+                }
+                final ImgFactory< T > imageFactory = new ArrayImgFactory< T >();
+                RandomAccessibleInterval currentImage = loader.getSetupImgLoader( viewSetupId ).getImage( t, ImgLoaderHints.LOAD_COMPLETELY );
                 final long[] currentDims = new long[ currentImage.numDimensions() ];
                 currentImage.dimensions( currentDims );
 
@@ -233,9 +232,9 @@ public class KlbDownsampler< T extends RealType< T > & NativeType< T > > impleme
                     klbDims[ 0 ] = currentDims[ 0 ];
                     klbDims[ 1 ] = currentDims[ 1 ];
                     klbDims[ 2 ] = currentDims[ 2 ];
-                    klbSampling[ 0 ] = (float) smpl[ level ][ 0 ];
-                    klbSampling[ 1 ] = (float) smpl[ level ][ 1 ];
-                    klbSampling[ 2 ] = (float) smpl[ level ][ 2 ];
+                    klbSampling[ 0 ] = ( float ) smpl[ level ][ 0 ];
+                    klbSampling[ 1 ] = ( float ) smpl[ level ][ 1 ];
+                    klbSampling[ 2 ] = ( float ) smpl[ level ][ 2 ];
                     header.setHeader( klbDims, cType, klbSampling );
                     io.setHeader( header );
                     io.writeImage( buffer.array(), numThreads );

@@ -67,9 +67,9 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
                     break;
                 }
             }
-            if ( !dimensionsRead ) {
-                throw new IllegalArgumentException( "Could not determine image dimensions for ViewSetup " + s + "." );
-            }
+            // if ( !dimensionsRead ) {
+            //     throw new IllegalArgumentException( "Could not determine image dimensions for ViewSetup " + s + "." );
+            // }
 
             resolver.getSampling( timePoint, s, 0, sampling );
             setupMap.put( s, new ViewSetup(
@@ -150,79 +150,8 @@ public class KlbSpimDataAdapter implements MultiViewDatasetDefinition
      */
     public void writeXML( final String filePath ) throws SpimDataException
     {
-        // new XmlIoSpimDataMinimal().save( getSpimDataMinimal(), filePath );
         final SpimData2 data = createDataset();
         data.setBasePath( new File( filePath ).getParentFile() );
         new XmlIoSpimData().save( data, filePath );
     }
-
-    //    public SpimDataMinimal getSpimDataMinimal()
-    //    {
-    //        final String basePath = "";
-    //
-    //        final String[] setups = new String[ data.getNumViewSetups() ];
-    //        for ( int i = 0; i < setups.length; ++i ) {
-    //            setups[ i ] = "" + i;
-    //        }
-    //
-    //        final int firstTimePoint = resolver.getFirstTimePoint();
-    //        final int lastTimePoint = resolver.getLastTimePoint();
-    //
-    //        final HashMap< Integer, BasicViewSetup > setupMap = new HashMap< Integer, BasicViewSetup >();
-    //        for ( int s = 0; s < setups.length; ++s ) {
-    //            setupMap.put( s, new BasicViewSetup(
-    //                    s, setups[ s ],
-    //                    new FinalDimensions( data.getImageDimensions( 0, 0 )[ 0 ] ),
-    //                    new FinalVoxelDimensions( "um", data.getSampling( 0, 0 )[ 0 ] ) ) );
-    //        }
-    //
-    //        final HashMap< Integer, TimePoint > timepointMap = new HashMap< Integer, TimePoint >();
-    //        for ( int t = 0; t <= lastTimePoint; ++t ) {
-    //            timepointMap.put( t, new TimePoint( t ) );
-    //        }
-    //        final TimePoints timePoints = new TimePoints( timepointMap );
-    //
-    //        MissingViews missingViews = null;
-    //        if ( firstTimePoint > 0 ) {
-    //            final ArrayList< ViewId > missing = new ArrayList< ViewId >();
-    //            for ( int t = 0; t < firstTimePoint; ++t ) {
-    //                for ( final Integer s : setupMap.keySet() ) {
-    //                    missing.add( new ViewId( t, s ) );
-    //                }
-    //            }
-    //            missingViews = new MissingViews( missing );
-    //        }
-    //
-    //        final SequenceDescriptionMinimal seq = new SequenceDescriptionMinimal(
-    //                timePoints,
-    //                setupMap,
-    //                new KlbImageLoader( data ),
-    //                missingViews );
-    //
-    //        final HashMap< ViewId, ViewRegistration > registrations = new HashMap< ViewId, ViewRegistration >();
-    //        final double[] sampling = data.getSampling( 0, 0 )[ 0 ];
-    //        final double min = Math.min( Math.min( sampling[ 0 ], sampling[ 1 ] ), sampling[ 2 ] );
-    //        for ( int i = 0; i < 3; ++i ) {
-    //            sampling[ i ] /= min;
-    //        }
-    //        for ( final BasicViewSetup setup : seq.getViewSetupsOrdered() ) {
-    //            final int setupId = setup.getId();
-    //
-    //            final AffineTransform3D calib = new AffineTransform3D();
-    //            calib.set(
-    //                    sampling[ 0 ], 0, 0, 0,
-    //                    0, sampling[ 1 ], 0, 0,
-    //                    0, 0, sampling[ 2 ], 0
-    //            );
-    //            for ( final TimePoint timepoint : seq.getTimePoints().getTimePointsOrdered() ) {
-    //                final int timepointId = timepoint.getId();
-    //                if ( timepointId >= firstTimePoint ) {
-    //                    registrations.put( new ViewId( timepointId, setupId ), new ViewRegistration( timepointId, setupId, calib ) );
-    //                }
-    //            }
-    //        }
-    //
-    //        return new SpimDataMinimal( new File( basePath ), seq, new ViewRegistrations( registrations ) );
-    //    }
-
 }
