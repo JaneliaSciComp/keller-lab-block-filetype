@@ -5,12 +5,11 @@ import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
-import mpicbg.spim.data.sequence.MultiResolutionImgLoader;
 import spim.Threads;
 
 import java.util.HashMap;
 
-public class KlbImageLoader implements ViewerImgLoader, MultiResolutionImgLoader
+public class KlbImageLoader implements ViewerImgLoader
 {
     private final VolatileGlobalCellCache cache;
     private final HashMap< Integer, ViewerSetupImgLoader< ?, ? > > setupImgLoaders = new HashMap< Integer, ViewerSetupImgLoader< ?, ? > >();
