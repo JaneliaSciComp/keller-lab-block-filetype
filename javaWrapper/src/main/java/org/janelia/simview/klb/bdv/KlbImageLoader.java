@@ -1,21 +1,21 @@
 package org.janelia.simview.klb.bdv;
 
 import bdv.ViewerImgLoader;
-import bdv.ViewerSetupImgLoader;
 import bdv.img.cache.Cache;
 import bdv.img.cache.VolatileGlobalCellCache;
 import mpicbg.spim.data.generic.sequence.AbstractSequenceDescription;
+import mpicbg.spim.data.sequence.MultiResolutionImgLoader;
 import spim.Threads;
 
 import java.util.HashMap;
 
-public class KlbImageLoader implements ViewerImgLoader
+public class KlbImageLoader implements ViewerImgLoader, MultiResolutionImgLoader
 {
     private final VolatileGlobalCellCache cache;
-    private final HashMap< Integer, ViewerSetupImgLoader< ?, ? > > setupImgLoaders = new HashMap< Integer, ViewerSetupImgLoader< ?, ? > >();
+    private final HashMap< Integer, KlbSetupImgLoaderUInt16 > setupImgLoaders = new HashMap< Integer, KlbSetupImgLoaderUInt16 >();
     private final KlbPartitionResolver resolver;
 
-    public KlbImageLoader( final KlbPartitionResolver resolver, final AbstractSequenceDescription< ?, ?, ? > seq )
+    public KlbImageLoader( final KlbPartitionResolver resolver, final AbstractSequenceDescription seq )
     {
         cache = new VolatileGlobalCellCache(
                 seq.getTimePoints().size(),
@@ -35,7 +35,7 @@ public class KlbImageLoader implements ViewerImgLoader
     }
 
     @Override
-    public ViewerSetupImgLoader< ?, ? > getSetupImgLoader( final int viewSetupId )
+    public KlbSetupImgLoaderUInt16 getSetupImgLoader( final int viewSetupId )
     {
         return setupImgLoaders.get( viewSetupId );
     }
