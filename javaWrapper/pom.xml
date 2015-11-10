@@ -6,7 +6,7 @@
 
     <groupId>org.janelia.simview</groupId>
     <artifactId>klb</artifactId>
-    <version>0.2.13-SNAPSHOT</version>
+    <version>0.3.0-SNAPSHOT</version>
     <packaging>jar</packaging>
 
     <name>Keller Lab Block file type (.klb) - JNI Library</name>
@@ -20,36 +20,15 @@
     <url>https://bitbucket.org/fernandoamat/keller-lab-block-filetype</url>
 
     <parent>
-        <artifactId>pom-bigdataviewer</artifactId>
-        <groupId>sc.fiji</groupId>
-        <version>2.2.1</version>
+        <groupId>net.imagej</groupId>
+        <artifactId>pom-imagej</artifactId>
+        <version>13.3.0</version>
     </parent>
 
     <dependencies>
         <dependency>
             <groupId>io.scif</groupId>
             <artifactId>scifio</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>net.imagej</groupId>
-            <artifactId>imagej-common</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>bigdataviewer-core</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>SPIM_Registration</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>sc.fiji</groupId>
-            <artifactId>spim_data</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>com.miglayout</groupId>
-            <artifactId>miglayout-swing</artifactId>
-            <version>[LATEST,)</version>
         </dependency>
     </dependencies>
 
