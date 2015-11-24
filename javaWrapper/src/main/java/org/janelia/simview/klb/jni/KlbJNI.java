@@ -10,6 +10,7 @@ package org.janelia.simview.klb.jni;
 
 import org.janelia.simview.util.NativeLibraryLoader;
 
+@Deprecated
 public class KlbJNI {
   public final static native int KLB_DATA_DIMS_get();
   public final static native int KLB_DEFAULT_HEADER_VERSION_get();

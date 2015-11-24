@@ -8,5 +8,6 @@
 
 package org.janelia.simview.klb.jni;
 
+@Deprecated
 public class Klb implements KlbConstants {
 }

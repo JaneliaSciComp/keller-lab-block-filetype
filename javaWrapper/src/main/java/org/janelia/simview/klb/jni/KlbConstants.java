@@ -8,6 +8,7 @@
 
 package org.janelia.simview.klb.jni;
 
+@Deprecated
 public interface KlbConstants {
   public final static int KLB_DATA_DIMS = KlbJNI.KLB_DATA_DIMS_get();
   public final static int KLB_DEFAULT_HEADER_VERSION = KlbJNI.KLB_DEFAULT_HEADER_VERSION_get();

@@ -8,6 +8,7 @@
 
 package org.janelia.simview.klb.jni;
 
+@Deprecated
 public enum KlbDataType {
   UINT8_TYPE(KlbJNI.UINT8_TYPE_get()),
   UINT16_TYPE(KlbJNI.UINT16_TYPE_get()),

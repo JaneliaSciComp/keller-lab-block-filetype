@@ -8,6 +8,7 @@
 
 package org.janelia.simview.klb.jni;
 
+@Deprecated
 public class KlbImageIO {
   private long swigCPtr;
   protected boolean swigCMemOwn;

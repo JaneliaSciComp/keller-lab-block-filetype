@@ -8,6 +8,7 @@
 
 package org.janelia.simview.klb.jni;
 
+@Deprecated
 public enum KlbCompressionType {
   NONE(KlbJNI.NONE_get()),
   BZIP2(KlbJNI.BZIP2_get()),
