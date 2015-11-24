@@ -174,7 +174,7 @@ int readKLBstackInPlace(const char* filename, void* im, KLB_DATA_TYPE *dataType,
 }
 
 //===========================================================================================
-int readKLBroiInPlace(const char* filename, void* im, KLB_DATA_TYPE *dataType, uint32_t xyzctLB[KLB_DATA_DIMS], uint32_t xyzctUB[KLB_DATA_DIMS], int numThreads)
+int readKLBroiInPlace(const char* filename, void* im, uint32_t xyzctLB[KLB_DATA_DIMS], uint32_t xyzctUB[KLB_DATA_DIMS], int numThreads)
 {
 	std::string filenameOut(filename);
 
@@ -187,17 +187,5 @@ int readKLBroiInPlace(const char* filename, void* im, KLB_DATA_TYPE *dataType, u
 		roi.xyzctUB[d] = xyzctUB[d];
 	}
 
-	int err = img.readHeader();
-	if (err > 0)
-		return err;
-
-	*dataType = img.header.dataType;	
-
-	err = img.readImage((char*)im, &roi, numThreads);
-	if (err > 0)
-	{
-		return err;
-	}
-
-	return err;
+	return img.readImage((char*)im, &roi, numThreads);
 }

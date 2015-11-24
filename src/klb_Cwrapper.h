@@ -61,7 +61,7 @@ extern "C" {  // only need to export C interface if
 	*/
 	DECLSPECIFIER int readKLBstackInPlace(const char* filename, void* im, enum KLB_DATA_TYPE *dataType, int numThreads);
 
-	DECLSPECIFIER int readKLBroiInPlace(const char* filename, void* im, enum KLB_DATA_TYPE *dataType, uint32_t xyzctLB[KLB_DATA_DIMS], uint32_t xyzctUB[KLB_DATA_DIMS], int numThreads);
+	DECLSPECIFIER int readKLBroiInPlace(const char* filename, void* im, uint32_t xyzctLB[KLB_DATA_DIMS], uint32_t xyzctUB[KLB_DATA_DIMS], int numThreads);
 
 
 #ifdef __cplusplus
