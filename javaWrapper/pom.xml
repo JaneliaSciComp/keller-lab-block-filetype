@@ -22,7 +22,7 @@
     <parent>
         <groupId>net.imagej</groupId>
         <artifactId>pom-imagej</artifactId>
-        <version>13.3.0</version>
+        <version>14.0.0</version>
     </parent>
 
     <dependencies>
