@@ -314,6 +314,152 @@ public abstract class KLB
         bytes.asDoubleBuffer().get( out );
     }
 
+    /**
+     * Read ROI from image. Returns an instance of ArrayImg if possible, else CellImg.
+     *
+     * When reading as a CellImg (Img.size() > Integer.MAX_VALUE), ensure that xyzctMin points to the start of a
+     * KLB block for max performance. Otherwise, all KLB blocks that intersect with multiple ImgCells will be
+     * uncompressed multiple times (when populating each intersecting ImgCell).
+     *
+     * @param filePath
+     * @param xyzctMin
+     * @param xyzctMax
+     * @param <T>
+     * @return
+     * @throws IOException
+     */
+    public < T extends RealType< T > & NativeType< T > > Img< T > readROI( final String filePath, final long[] xyzctMin, final long[] xyzctMax )
+            throws IOException
+    {
+        // KLB is always 5-dimensional, so drop trailing singleton dimensions here
+        final long[] roiSize = new long[ xyzctMin.length ];
+        for ( int d = 0; d < xyzctMin.length; ++d ) {
+            roiSize[ d ] = 1 + xyzctMax[ d ] - xyzctMin[ d ];
+        }
+        int maxDim = roiSize.length - 1;
+        while ( maxDim >= 0 && roiSize[ maxDim ] <= 1 ) {
+            maxDim--;
+        }
+        final long[] squeezed = new long[ maxDim + 1 ];
+        System.arraycopy( roiSize, 0, squeezed, 0, squeezed.length );
+
+        // read as ArrayImg if possible, else read as CellImg
+        long numElements = 1;
+        for ( final long d : squeezed ) {
+            numElements *= d;
+        }
+        final Header header = readHeader( filePath );
+        if ( numElements <= Integer.MAX_VALUE ) {
+            return readArrayImgROI( filePath, header.dataType.getClass(), squeezed, xyzctMin, xyzctMin, ( int ) numElements );
+        } else {
+            // get better block size, see getBlockSizeMultipliers function
+            final int[] blockSize = new int[ squeezed.length ];
+            for ( int d = 0; d < blockSize.length; ++d ) {
+                blockSize[ d ] = ( int ) header.blockSize[ d ];
+            }
+            final int[] blockMultipliers = new int[ Math.min( 3, squeezed.length ) ]; // consider spatial (first 3) dimensions only
+            getBlockSizeMultipliers( header, blockMultipliers );
+            for ( int d = 0; d < blockMultipliers.length; ++d ) {
+                blockSize[ d ] *= blockMultipliers[ d ];
+            }
+            return readCellImgROI( filePath, ( T ) header.dataType, squeezed, xyzctMin, xyzctMax, blockSize );
+        }
+    }
+
+    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImgROI( final String filePath, final Class dataType, final long[] roiSize, final long[] xyzctMin, final long[] xyzctMax, final int numElements )
+            throws IOException
+    {
+        if ( dataType == UnsignedByteType.class ) {
+            final byte[] buffer = new byte[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.unsignedBytes( buffer, roiSize );
+        } else if ( dataType == UnsignedShortType.class ) {
+            final short[] buffer = new short[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.unsignedShorts( buffer, roiSize );
+        } else if ( dataType == UnsignedIntType.class ) {
+            final int[] buffer = new int[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.unsignedInts( buffer, roiSize );
+        } else if ( dataType == UnsignedLongType.class ) {
+            final long[] buffer = new long[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.longs( buffer, roiSize ); // unsigned?
+
+        } else if ( dataType == ByteType.class ) {
+            final byte[] buffer = new byte[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.bytes( buffer, roiSize );
+        } else if ( dataType == ShortType.class ) {
+            final short[] buffer = new short[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.shorts( buffer, roiSize );
+        } else if ( dataType == IntType.class ) {
+            final int[] buffer = new int[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.ints( buffer, roiSize );
+        } else if ( dataType == LongType.class ) {
+            final long[] buffer = new long[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.longs( buffer, roiSize );
+
+        } else if ( dataType == FloatType.class ) {
+            final float[] buffer = new float[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.floats( buffer, roiSize );
+        } else if ( dataType == DoubleType.class ) {
+            final double[] buffer = new double[ numElements ];
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+            return ( Img< T > ) ArrayImgs.doubles( buffer, roiSize );
+        } else {
+            throw new IOException();
+        }
+    }
+
+    private < T extends RealType< T > & NativeType< T >, A extends ArrayDataAccess< A > > Img< T > readCellImgROI( final String filePath, final T dataType, final long[] roiSize, final long[] xyzctMin, final long[] xyzctMax, final int[] blockSize )
+            throws IOException
+    {
+        final CellImgFactory< T > factory = new CellImgFactory< T >( blockSize );
+        final CellImg< T, A, DefaultCell< A > > cellImg =
+                ( CellImg< T, A, DefaultCell< A > > ) factory.create( roiSize, dataType );
+        final Cursor< DefaultCell< A > > cursor = cellImg.getCells().cursor();
+        final int[] dims = new int[ blockSize.length ];
+        final long[] min = new long[ blockSize.length ];
+        final long[] max = new long[ blockSize.length ];
+        while ( cursor.hasNext() ) {
+            final DefaultCell< A > cell = cursor.next();
+            cell.dimensions( dims );
+            cell.min( min );
+            for ( int d = 0; d < blockSize.length; ++d ) {
+                max[ d ] = min[ d ] + dims[ d ] - 1;
+            }
+            final Object block = cell.getData().getCurrentStorageArray();
+            switch ( dataType.getBitsPerPixel() ) {
+                case 8:
+                    readROIinPlace( filePath, min, max, ( byte[] ) block );
+                    break;
+                case 16:
+                    readROIinPlace( filePath, min, max, ( short[] ) block );
+                    break;
+                case 32:
+                    if ( dataType instanceof IntegerType )
+                        readROIinPlace( filePath, min, max, ( int[] ) block );
+                    else
+                        readROIinPlace( filePath, min, max, ( float[] ) block );
+                    break;
+                case 64:
+                    if ( dataType instanceof IntegerType )
+                        readROIinPlace( filePath, min, max, ( long[] ) block );
+                    else
+                        readROIinPlace( filePath, min, max, ( double[] ) block );
+                    break;
+                default:
+                    throw new IOException();
+            }
+        }
+        return cellImg;
+    }
+
 
 
     /***********************************************************
