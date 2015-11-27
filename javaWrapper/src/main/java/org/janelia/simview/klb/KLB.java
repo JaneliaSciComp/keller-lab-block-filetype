@@ -131,88 +131,94 @@ public abstract class KLB
      */
     public < T extends RealType< T > & NativeType< T > > Img< T > readFull( final String filePath ) throws IOException
     {
+        // KLB is always 5-dimensional, so drop trailing singleton dimensions here
         final Header header = readHeader( filePath );
+        final long[] imageSize = header.imageSize;
+        int maxDim = imageSize.length - 1;
+        while ( maxDim >= 0 && imageSize[ maxDim ] <= 1 ) {
+            maxDim--;
+        }
+        final long[] squeezed = new long[ maxDim + 1 ];
+        System.arraycopy( imageSize, 0, squeezed, 0, squeezed.length );
+
+        // read as ArrayImg if possible, else read as CellImg
         long numElements = 1;
-        for ( final long d : header.imageSize ) {
+        for ( final long d : squeezed ) {
             numElements *= d;
         }
-
         if ( numElements <= Integer.MAX_VALUE ) {
-            return readArrayImg( filePath, header, ( int ) numElements );
+            return readArrayImg( filePath, header.dataType.getClass(), squeezed, ( int ) numElements );
         } else {
-            return readCellImg( filePath, header );
+            // get better block size, see getBlockSizeMultipliers function
+            final int[] blockSize = new int[ squeezed.length ];
+            for ( int d = 0; d < blockSize.length; ++d ) {
+                blockSize[ d ] = ( int ) header.blockSize[ d ];
+            }
+            final int[] blockMultipliers = new int[ Math.min( 3, squeezed.length ) ]; // consider spatial (first 3) dimensions only
+            getBlockSizeMultipliers( header, blockMultipliers );
+            for ( int d = 0; d < blockMultipliers.length; ++d ) {
+                blockSize[ d ] *= blockMultipliers[ d ];
+            }
+            return readCellImg( filePath, ( T ) header.dataType, squeezed, blockSize );
         }
     }
 
-    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImg( final String filePath, final Header header, final int numElements )
+    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImg( final String filePath, final Class dataType, final long[] imageSize, final int numElements )
             throws IOException
     {
-        final Class clazz = header.dataType.getClass();
-        if ( clazz == UnsignedByteType.class ) {
+        if ( dataType == UnsignedByteType.class ) {
             final byte[] buffer = new byte[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.unsignedBytes( buffer, header.imageSize );
-        } else if ( clazz == UnsignedShortType.class ) {
+            return ( Img< T > ) ArrayImgs.unsignedBytes( buffer, imageSize );
+        } else if ( dataType == UnsignedShortType.class ) {
             final short[] buffer = new short[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.unsignedShorts( buffer, header.imageSize );
-        } else if ( clazz == UnsignedIntType.class ) {
+            return ( Img< T > ) ArrayImgs.unsignedShorts( buffer, imageSize );
+        } else if ( dataType == UnsignedIntType.class ) {
             final int[] buffer = new int[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.unsignedInts( buffer, header.imageSize );
-        } else if ( clazz == UnsignedLongType.class ) {
+            return ( Img< T > ) ArrayImgs.unsignedInts( buffer, imageSize );
+        } else if ( dataType == UnsignedLongType.class ) {
             final long[] buffer = new long[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.longs( buffer, header.imageSize ); // unsigned?
+            return ( Img< T > ) ArrayImgs.longs( buffer, imageSize ); // unsigned?
 
-        } else if ( clazz == ByteType.class ) {
+        } else if ( dataType == ByteType.class ) {
             final byte[] buffer = new byte[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.bytes( buffer, header.imageSize );
-        } else if ( clazz == ShortType.class ) {
+            return ( Img< T > ) ArrayImgs.bytes( buffer, imageSize );
+        } else if ( dataType == ShortType.class ) {
             final short[] buffer = new short[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.shorts( buffer, header.imageSize );
-        } else if ( clazz == IntType.class ) {
+            return ( Img< T > ) ArrayImgs.shorts( buffer, imageSize );
+        } else if ( dataType == IntType.class ) {
             final int[] buffer = new int[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.ints( buffer, header.imageSize );
-        } else if ( clazz == LongType.class ) {
+            return ( Img< T > ) ArrayImgs.ints( buffer, imageSize );
+        } else if ( dataType == LongType.class ) {
             final long[] buffer = new long[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.longs( buffer, header.imageSize );
+            return ( Img< T > ) ArrayImgs.longs( buffer, imageSize );
 
-        } else if ( clazz == FloatType.class ) {
+        } else if ( dataType == FloatType.class ) {
             final float[] buffer = new float[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.floats( buffer, header.imageSize );
-        } else if ( clazz == DoubleType.class ) {
+            return ( Img< T > ) ArrayImgs.floats( buffer, imageSize );
+        } else if ( dataType == DoubleType.class ) {
             final double[] buffer = new double[ numElements ];
             readFullInPlace( filePath, buffer );
-            return ( Img< T > ) ArrayImgs.doubles( buffer, header.imageSize );
+            return ( Img< T > ) ArrayImgs.doubles( buffer, imageSize );
         } else {
             throw new IOException();
         }
     }
 
-    private < T extends RealType< T > & NativeType< T >, A extends ArrayDataAccess< A > > Img< T > readCellImg( final String filePath, final Header header )
+    private < T extends RealType< T > & NativeType< T >, A extends ArrayDataAccess< A > > Img< T > readCellImg( final String filePath, final T dataType, final long[] imageSize, final int[] blockSize )
             throws IOException
     {
-        final int[] blockSize = new int[ header.blockSize.length ];
-        for ( int d = 0; d < blockSize.length; ++d ) {
-            blockSize[ d ] = ( int ) header.blockSize[ d ];
-        }
-        // get better suited block sizes, see getBlockSizeMultipliers function
-        final int[] blockMultipliers = new int[ 3 ]; // consider spatial (first 3) dimensions only
-        getBlockSizeMultipliers( header, blockMultipliers );
-        for ( int d = 0; d < blockMultipliers.length; ++d ) {
-            blockSize[ d ] *= blockMultipliers[ d ];
-        }
-
-        final T type = ( T ) header.dataType;
         final CellImgFactory< T > factory = new CellImgFactory< T >( blockSize );
         final CellImg< T, A, DefaultCell< A > > cellImg =
-                ( CellImg< T, A, DefaultCell< A > > ) factory.create( header.imageSize, type );
+                ( CellImg< T, A, DefaultCell< A > > ) factory.create( imageSize, dataType );
         final Cursor< DefaultCell< A > > cursor = cellImg.getCells().cursor();
         final int[] dims = new int[ blockSize.length ];
         final long[] min = new long[ blockSize.length ];
@@ -225,7 +231,7 @@ public abstract class KLB
                 max[ d ] = min[ d ] + dims[ d ] - 1;
             }
             final Object block = cell.getData().getCurrentStorageArray();
-            switch ( type.getBitsPerPixel() ) {
+            switch ( dataType.getBitsPerPixel() ) {
                 case 8:
                     readROIinPlace( filePath, min, max, ( byte[] ) block );
                     break;
@@ -233,13 +239,13 @@ public abstract class KLB
                     readROIinPlace( filePath, min, max, ( short[] ) block );
                     break;
                 case 32:
-                    if ( type instanceof IntegerType )
+                    if ( dataType instanceof IntegerType )
                         readROIinPlace( filePath, min, max, ( int[] ) block );
                     else
                         readROIinPlace( filePath, min, max, ( float[] ) block );
                     break;
                 case 64:
-                    if ( type instanceof IntegerType )
+                    if ( dataType instanceof IntegerType )
                         readROIinPlace( filePath, min, max, ( long[] ) block );
                     else
                         readROIinPlace( filePath, min, max, ( double[] ) block );
@@ -375,10 +381,10 @@ public abstract class KLB
      * When reading a KLB image as a CellImg, it is desirable to use as few Cells as possible.
      * On the other hand, the Cells should be aligned with the KLB blocks (i.e. each Cell should be an integer multiple
      * of KLB blocks), and the excess volume (waste) should be minimal.
-     *
+     * <p>
      * This function tries to come up with the highest integer multiple of KLB blocks, in each dimension, that requires
      * the smallest waste volume.
-     *
+     * <p>
      * The length of the multipliers vector determines how many dimensions will be considered. Generally, using int[3]
      * is a good idea, since this will try to optimize the Cell dimensions in x,y,z but leave c,t alone.
      *
