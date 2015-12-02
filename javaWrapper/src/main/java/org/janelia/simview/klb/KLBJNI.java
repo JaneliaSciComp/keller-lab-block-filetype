@@ -47,19 +47,13 @@ public class KLBJNI extends KLB
     @Override
     public Header readHeader( final String filePath ) throws IOException
     {
-        final long[] imageSize = new long[ 5 ];
-        final long[] blockSize = new long[ 5 ];
-        final float[] pixelSpacing = new float[ 5 ];
+        final Header header = new Header();
         final int[] dataAndCompressionType = new int[ 2 ];
         final byte[] meta = new byte[ 256 ];
-        final int err = jniReadHeader( filePath, imageSize, blockSize, pixelSpacing, dataAndCompressionType, meta );
+        final int err = jniReadHeader( filePath, header.imageSize, header.blockSize, header.pixelSpacing, dataAndCompressionType, meta );
         if ( err != 0 )
             throw new IOException( String.format( "Could not read KLB header of file %s, error code %d.", filePath, err ) );
 
-        final Header header = new Header();
-        header.imageSize = imageSize;
-        header.blockSize = blockSize;
-        header.pixelSpacing = pixelSpacing;
         header.metadata = meta;
 
         switch ( dataAndCompressionType[ 0 ] ) {
@@ -345,26 +339,25 @@ public class KLBJNI extends KLB
      */
     private < T extends RealType< ? > & NativeType< ? > > int getDataType( final T dataType ) throws IOException
     {
-        final Class clazz = dataType.getClass();
-        if ( clazz == UnsignedByteType.class )
+        if ( dataType instanceof UnsignedByteType )
             return 0;
-        else if ( clazz == UnsignedShortType.class )
+        else if ( dataType instanceof UnsignedShortType )
             return 1;
-        else if ( clazz == UnsignedIntType.class )
+        else if ( dataType instanceof UnsignedIntType )
             return 2;
-        else if ( clazz == UnsignedLongType.class )
+        else if ( dataType instanceof UnsignedLongType )
             return 3;
-        else if ( clazz == ByteType.class )
+        else if ( dataType instanceof ByteType )
             return 4;
-        else if ( clazz == ShortType.class )
+        else if ( dataType instanceof ShortType )
             return 5;
-        else if ( clazz == IntType.class )
+        else if ( dataType instanceof IntType )
             return 6;
-        else if ( clazz == LongType.class )
+        else if ( dataType instanceof LongType )
             return 7;
-        else if ( clazz == FloatType.class )
+        else if ( dataType instanceof FloatType )
             return 8;
-        else if ( clazz == DoubleType.class )
+        else if ( dataType instanceof DoubleType )
             return 9;
         else
             throw new IOException( "Unknown or unsupported data type" );

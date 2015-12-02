@@ -28,11 +28,34 @@ public abstract class KLB
 
     public class Header< T extends RealType< T > & NativeType< T > >
     {
-        public long[] imageSize;
-        public long[] blockSize;
-        public float[] pixelSpacing;
+        /**
+         * Image size, in order xyzct
+         */
+        public final long[] imageSize = new long[ 5 ];
+
+        /**
+         * Size of KLB blocks (units that are de-/compressed in parallel), in order xyzct
+         */
+        public final long[] blockSize = new long[ 5 ];
+
+        /**
+         * Physical pixel spacing, in order xyzct; standard units are microns and seconds
+         */
+        public final float[] pixelSpacing = new float[ 5 ];
+
+        /**
+         * Image data type, extends imglib2's RealType<T> & NativeType<T>
+         */
         public T dataType;
+
+        /**
+         * Compression algorithm
+         */
         public CompressionType compressionType;
+
+        /**
+         * Metadata header field
+         */
         public byte[] metadata;
 
         @Override
@@ -55,15 +78,35 @@ public abstract class KLB
         return new KLBJNI();
     }
 
+    /**
+     * Number of threads to use for parallel de-/compression, default is all available processors
+     */
     protected int numThreads = Runtime.getRuntime().availableProcessors();
 
+    /**
+     * Set number of threads to use for parallel de-/compression, default is all available processors
+     */
     public void setNumThreads( final int n )
     {
         numThreads = n;
     }
 
-    public abstract Header readHeader( final String filePath ) throws IOException;
+    /**
+     * Get number of threads used for parallel de-/compression
+     */
+    public int getNumThreads()
+    {
+        return numThreads;
+    }
 
+    /**
+     * Read header from KLB file
+     *
+     * @param filePath file system path to KLB file
+     * @return org.janelia.simview.KLB.Header instance
+     * @throws IOException
+     */
+    public abstract Header readHeader( final String filePath ) throws IOException;
 
 
     /***********************************************************
@@ -124,9 +167,9 @@ public abstract class KLB
     /**
      * Read the entire image. Returns an instance of ArrayImg if possible, else CellImg.
      *
-     * @param filePath
-     * @param <T>
-     * @return
+     * @param filePath file system path to KLB file
+     * @param <T>      imglib2 data type of image
+     * @return entire image, as ArrayImg or CellImg, as appropriate
      * @throws IOException
      */
     public < T extends RealType< T > & NativeType< T > > Img< T > readFull( final String filePath ) throws IOException
@@ -135,7 +178,7 @@ public abstract class KLB
         final Header header = readHeader( filePath );
         final long[] imageSize = header.imageSize;
         int maxDim = imageSize.length - 1;
-        while ( maxDim >= 0 && imageSize[ maxDim ] <= 1 ) {
+        while ( maxDim > 1 && imageSize[ maxDim ] <= 1 ) {
             maxDim--;
         }
         final long[] squeezed = new long[ maxDim + 1 ];
@@ -147,7 +190,7 @@ public abstract class KLB
             numElements *= d;
         }
         if ( numElements <= Integer.MAX_VALUE ) {
-            return readArrayImg( filePath, header.dataType.getClass(), squeezed, ( int ) numElements );
+            return readArrayImg( filePath, ( T ) header.dataType, squeezed, ( int ) numElements );
         } else {
             // get better block size, see getBlockSizeMultipliers function
             final int[] blockSize = new int[ squeezed.length ];
@@ -163,48 +206,48 @@ public abstract class KLB
         }
     }
 
-    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImg( final String filePath, final Class dataType, final long[] imageSize, final int numElements )
+    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImg( final String filePath, final T dataType, final long[] imageSize, final int numElements )
             throws IOException
     {
-        if ( dataType == UnsignedByteType.class ) {
+        if ( dataType instanceof UnsignedByteType ) {
             final byte[] buffer = new byte[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.unsignedBytes( buffer, imageSize );
-        } else if ( dataType == UnsignedShortType.class ) {
+        } else if ( dataType instanceof UnsignedShortType ) {
             final short[] buffer = new short[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.unsignedShorts( buffer, imageSize );
-        } else if ( dataType == UnsignedIntType.class ) {
+        } else if ( dataType instanceof UnsignedIntType ) {
             final int[] buffer = new int[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.unsignedInts( buffer, imageSize );
-        } else if ( dataType == UnsignedLongType.class ) {
+        } else if ( dataType instanceof UnsignedLongType ) {
             final long[] buffer = new long[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.longs( buffer, imageSize ); // unsigned?
 
-        } else if ( dataType == ByteType.class ) {
+        } else if ( dataType instanceof ByteType ) {
             final byte[] buffer = new byte[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.bytes( buffer, imageSize );
-        } else if ( dataType == ShortType.class ) {
+        } else if ( dataType instanceof ShortType ) {
             final short[] buffer = new short[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.shorts( buffer, imageSize );
-        } else if ( dataType == IntType.class ) {
+        } else if ( dataType instanceof IntType ) {
             final int[] buffer = new int[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.ints( buffer, imageSize );
-        } else if ( dataType == LongType.class ) {
+        } else if ( dataType instanceof LongType ) {
             final long[] buffer = new long[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.longs( buffer, imageSize );
 
-        } else if ( dataType == FloatType.class ) {
+        } else if ( dataType instanceof FloatType ) {
             final float[] buffer = new float[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.floats( buffer, imageSize );
-        } else if ( dataType == DoubleType.class ) {
+        } else if ( dataType instanceof DoubleType ) {
             final double[] buffer = new double[ numElements ];
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.doubles( buffer, imageSize );
@@ -256,7 +299,6 @@ public abstract class KLB
         }
         return cellImg;
     }
-
 
 
     /***********************************************************
@@ -315,17 +357,17 @@ public abstract class KLB
     }
 
     /**
-     * Read ROI from image. Returns an instance of ArrayImg if possible, else CellImg.
-     *
+     * Read subvolume from image. Returns an instance of ArrayImg if possible, else CellImg.
+     * <p>
      * When reading as a CellImg (Img.size() > Integer.MAX_VALUE), ensure that xyzctMin points to the start of a
      * KLB block for max performance. Otherwise, all KLB blocks that intersect with multiple ImgCells will be
      * uncompressed multiple times (when populating each intersecting ImgCell).
      *
-     * @param filePath
-     * @param xyzctMin
-     * @param xyzctMax
-     * @param <T>
-     * @return
+     * @param filePath file system path to KLB file
+     * @param xyzctMin lower limit of bounding box subvolume, in order xyzct
+     * @param xyzctMax upper limit of bounding box subvolume (inclusive), in order xyzct
+     * @param <T>      imglib2 data type of image
+     * @return subvolume, as ArrayImg or CellImg, as appropriate
      * @throws IOException
      */
     public < T extends RealType< T > & NativeType< T > > Img< T > readROI( final String filePath, final long[] xyzctMin, final long[] xyzctMax )
@@ -337,7 +379,7 @@ public abstract class KLB
             roiSize[ d ] = 1 + xyzctMax[ d ] - xyzctMin[ d ];
         }
         int maxDim = roiSize.length - 1;
-        while ( maxDim >= 0 && roiSize[ maxDim ] <= 1 ) {
+        while ( maxDim > 1 && roiSize[ maxDim ] <= 1 ) {
             maxDim--;
         }
         final long[] squeezed = new long[ maxDim + 1 ];
@@ -350,7 +392,7 @@ public abstract class KLB
         }
         final Header header = readHeader( filePath );
         if ( numElements <= Integer.MAX_VALUE ) {
-            return readArrayImgROI( filePath, header.dataType.getClass(), squeezed, xyzctMin, xyzctMin, ( int ) numElements );
+            return readArrayImgROI( filePath, ( T ) header.dataType, squeezed, xyzctMin, xyzctMin, ( int ) numElements );
         } else {
             // get better block size, see getBlockSizeMultipliers function
             final int[] blockSize = new int[ squeezed.length ];
@@ -366,48 +408,48 @@ public abstract class KLB
         }
     }
 
-    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImgROI( final String filePath, final Class dataType, final long[] roiSize, final long[] xyzctMin, final long[] xyzctMax, final int numElements )
+    private < T extends RealType< ? > & NativeType< ? > > Img< T > readArrayImgROI( final String filePath, final T dataType, final long[] roiSize, final long[] xyzctMin, final long[] xyzctMax, final int numElements )
             throws IOException
     {
-        if ( dataType == UnsignedByteType.class ) {
+        if ( dataType instanceof UnsignedByteType ) {
             final byte[] buffer = new byte[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.unsignedBytes( buffer, roiSize );
-        } else if ( dataType == UnsignedShortType.class ) {
+        } else if ( dataType instanceof UnsignedShortType ) {
             final short[] buffer = new short[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.unsignedShorts( buffer, roiSize );
-        } else if ( dataType == UnsignedIntType.class ) {
+        } else if ( dataType instanceof UnsignedIntType ) {
             final int[] buffer = new int[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.unsignedInts( buffer, roiSize );
-        } else if ( dataType == UnsignedLongType.class ) {
+        } else if ( dataType instanceof UnsignedLongType ) {
             final long[] buffer = new long[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.longs( buffer, roiSize ); // unsigned?
 
-        } else if ( dataType == ByteType.class ) {
+        } else if ( dataType instanceof ByteType ) {
             final byte[] buffer = new byte[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.bytes( buffer, roiSize );
-        } else if ( dataType == ShortType.class ) {
+        } else if ( dataType instanceof ShortType ) {
             final short[] buffer = new short[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.shorts( buffer, roiSize );
-        } else if ( dataType == IntType.class ) {
+        } else if ( dataType instanceof IntType ) {
             final int[] buffer = new int[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.ints( buffer, roiSize );
-        } else if ( dataType == LongType.class ) {
+        } else if ( dataType instanceof LongType ) {
             final long[] buffer = new long[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.longs( buffer, roiSize );
 
-        } else if ( dataType == FloatType.class ) {
+        } else if ( dataType instanceof FloatType ) {
             final float[] buffer = new float[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.floats( buffer, roiSize );
-        } else if ( dataType == DoubleType.class ) {
+        } else if ( dataType instanceof DoubleType ) {
             final double[] buffer = new double[ numElements ];
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.doubles( buffer, roiSize );
@@ -459,7 +501,6 @@ public abstract class KLB
         }
         return cellImg;
     }
-
 
 
     /***********************************************************
@@ -516,7 +557,6 @@ public abstract class KLB
         buffer.asDoubleBuffer().put( img );
         writeFull( buffer.array(), filePath, imageSize, dataType, pixelSpacing, blockSize, compressionType, metadata );
     }
-
 
 
     /***********************************************************
