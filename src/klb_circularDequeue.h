@@ -26,7 +26,7 @@ class klb_circular_dequeue
 public:
 
 	//variables
-	std::condition_variable	g_writeWait;//so writer waits until there is a spot until the queue isfull
+	std::condition_variable	g_writeWait;//so writer waits until there is a spot until the queue is full
 	std::mutex              g_lockWrite;//mutex to lock read/write resources
 
 	//constructor / destructor
@@ -39,7 +39,7 @@ public:
 	char* getReadBlock();//once you read the block it DOES NOT allow you to overwrite it. you have to call popReadBlock. Returns NULL if nothing is available
 	void popReadBlock();//releases the oldest read block if there is any to release
 	char* getWriteBlock();//return NULL if it cannot write because queue is full
-	void pushWriteBlock();//indiciates block is ready to be written
+	void pushWriteBlock();//indicates block is ready to be written
 
 protected:
 
@@ -47,7 +47,7 @@ private:
 	char* dataBuffer;//stores data. The size is blockSizeBytes*numBlocks
 	const int blockSizeBytes;//number of bytes per block
 	const int numBlocks;//number of blocks that can be stored
-	int readIdx, writeIdx;//index within the dequeu to read / write next element
+	int readIdx, writeIdx;//index within the dequeue to read / write next element
 	int numTaken;//count number of elements taken so we avoid spill over
 };
 
