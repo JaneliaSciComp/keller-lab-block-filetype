@@ -252,7 +252,7 @@ public abstract class KLB
             readFullInPlace( filePath, buffer );
             return ( Img< T > ) ArrayImgs.doubles( buffer, imageSize );
         } else {
-            throw new IOException();
+            throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
         }
     }
 
@@ -294,7 +294,7 @@ public abstract class KLB
                         readROIinPlace( filePath, min, max, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 default:
-                    throw new IOException();
+                    throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
             }
         }
         return cellImg;
@@ -454,7 +454,7 @@ public abstract class KLB
             readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
             return ( Img< T > ) ArrayImgs.doubles( buffer, roiSize );
         } else {
-            throw new IOException();
+            throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
         }
     }
 
@@ -496,7 +496,7 @@ public abstract class KLB
                         readROIinPlace( filePath, min, max, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 default:
-                    throw new IOException();
+                    throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
             }
         }
         return cellImg;
