@@ -3,7 +3,7 @@ package org.janelia.simview.klb;
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImgs;
-import net.imglib2.img.basictypeaccess.array.ArrayDataAccess;
+import net.imglib2.img.basictypeaccess.array.*;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
 import net.imglib2.img.cell.DefaultCell;
@@ -262,36 +262,36 @@ public abstract class KLB
         final CellImgFactory< T > factory = new CellImgFactory< T >( blockSize );
         final CellImg< T, A, DefaultCell< A > > cellImg =
                 ( CellImg< T, A, DefaultCell< A > > ) factory.create( imageSize, dataType );
+        final int[] dims = new int[ imageSize.length ];
+        final long[] min = new long[ 5 ];
+        final long[] max = new long[ 5 ];
         final Cursor< DefaultCell< A > > cursor = cellImg.getCells().cursor();
-        final int[] dims = new int[ blockSize.length ];
-        final long[] min = new long[ blockSize.length ];
-        final long[] max = new long[ blockSize.length ];
         while ( cursor.hasNext() ) {
             final DefaultCell< A > cell = cursor.next();
             cell.dimensions( dims );
             cell.min( min );
-            for ( int d = 0; d < blockSize.length; ++d ) {
-                max[ d ] = min[ d ] + dims[ d ] - 1;
+            for ( int d = 0; d < min.length; ++d ) {
+                final int len = d < dims.length ? dims[ d ] : 1;
+                max[ d ] = min[ d ] + len - 1;
             }
-            final Object block = cell.getData().getCurrentStorageArray();
             switch ( dataType.getBitsPerPixel() ) {
                 case 8:
-                    readROIinPlace( filePath, min, max, ( byte[] ) block );
+                    readROIinPlace( filePath, min, max, (( ByteArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 16:
-                    readROIinPlace( filePath, min, max, ( short[] ) block );
+                    readROIinPlace( filePath, min, max, (( ShortArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 32:
                     if ( dataType instanceof IntegerType )
-                        readROIinPlace( filePath, min, max, ( int[] ) block );
+                        readROIinPlace( filePath, min, max, (( IntArray ) cell.getData()).getCurrentStorageArray() );
                     else
-                        readROIinPlace( filePath, min, max, ( float[] ) block );
+                        readROIinPlace( filePath, min, max, (( FloatArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 64:
                     if ( dataType instanceof IntegerType )
-                        readROIinPlace( filePath, min, max, ( long[] ) block );
+                        readROIinPlace( filePath, min, max, (( LongArray ) cell.getData()).getCurrentStorageArray() );
                     else
-                        readROIinPlace( filePath, min, max, ( double[] ) block );
+                        readROIinPlace( filePath, min, max, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 default:
                     throw new IOException();
@@ -465,35 +465,35 @@ public abstract class KLB
         final CellImg< T, A, DefaultCell< A > > cellImg =
                 ( CellImg< T, A, DefaultCell< A > > ) factory.create( roiSize, dataType );
         final Cursor< DefaultCell< A > > cursor = cellImg.getCells().cursor();
-        final int[] dims = new int[ blockSize.length ];
-        final long[] min = new long[ blockSize.length ];
-        final long[] max = new long[ blockSize.length ];
+        final int[] dims = new int[ roiSize.length ];
+        final long[] min = new long[ 5 ];
+        final long[] max = new long[ 5 ];
         while ( cursor.hasNext() ) {
             final DefaultCell< A > cell = cursor.next();
             cell.dimensions( dims );
             cell.min( min );
-            for ( int d = 0; d < blockSize.length; ++d ) {
-                max[ d ] = min[ d ] + dims[ d ] - 1;
+            for ( int d = 0; d < min.length; ++d ) {
+                final int len = d < dims.length ? dims[ d ] : 1;
+                max[ d ] = min[ d ] + len - 1;
             }
-            final Object block = cell.getData().getCurrentStorageArray();
             switch ( dataType.getBitsPerPixel() ) {
                 case 8:
-                    readROIinPlace( filePath, min, max, ( byte[] ) block );
+                    readROIinPlace( filePath, min, max, (( ByteArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 16:
-                    readROIinPlace( filePath, min, max, ( short[] ) block );
+                    readROIinPlace( filePath, min, max, (( ShortArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 32:
                     if ( dataType instanceof IntegerType )
-                        readROIinPlace( filePath, min, max, ( int[] ) block );
+                        readROIinPlace( filePath, min, max, (( IntArray ) cell.getData()).getCurrentStorageArray() );
                     else
-                        readROIinPlace( filePath, min, max, ( float[] ) block );
+                        readROIinPlace( filePath, min, max, (( FloatArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 64:
                     if ( dataType instanceof IntegerType )
-                        readROIinPlace( filePath, min, max, ( long[] ) block );
+                        readROIinPlace( filePath, min, max, (( LongArray ) cell.getData()).getCurrentStorageArray() );
                     else
-                        readROIinPlace( filePath, min, max, ( double[] ) block );
+                        readROIinPlace( filePath, min, max, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 default:
                     throw new IOException();
