@@ -1,6 +1,9 @@
 #KLB stands for Keller Lab Block image format
 project ( imageBlockAPI_project )
 cmake_minimum_required ( VERSION 2.8 )
+cmake_policy(SET CMP0002 OLD)
+cmake_policy(SET CMP0026 OLD)
+cmake_policy(SET CMP0054 OLD)
 
 #folder where all the executables go (this is seens by all elements called using add_subdirectory)
 SET(KLB_BINARY_FOLDER "${PROJECT_SOURCE_DIR}/../bin")
@@ -97,4 +100,4 @@ endif()
 
 
 #copy binaries to specific folder for release version
-INSTALL(TARGETS  klblib klblibs test_klbIO test_klbIO_C DESTINATION "${KLB_BINARY_FOLDER}" CONFIGURATIONS Release)
+#INSTALL(TARGETS klblibs test_klbIO test_klbIO_C DESTINATION "${KLB_BINARY_FOLDER}" CONFIGURATIONS Release)
