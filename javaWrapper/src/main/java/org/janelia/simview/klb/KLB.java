@@ -392,7 +392,7 @@ public abstract class KLB
         }
         final Header header = readHeader( filePath );
         if ( numElements <= Integer.MAX_VALUE ) {
-            return readArrayImgROI( filePath, ( T ) header.dataType, squeezed, xyzctMin, xyzctMin, ( int ) numElements );
+            return readArrayImgROI( filePath, ( T ) header.dataType, squeezed, xyzctMin, xyzctMax, ( int ) numElements );
         } else {
             // get better block size, see getBlockSizeMultipliers function
             final int[] blockSize = new int[ squeezed.length ];
