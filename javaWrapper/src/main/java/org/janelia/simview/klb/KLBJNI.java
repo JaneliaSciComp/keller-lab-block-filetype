@@ -280,7 +280,7 @@ public class KLBJNI extends KLB
     // This avoids copying the image to convert from byte[] to short[], int[], etc.
 
     @Override
-    public < T extends GenericShortType< ? > > void writeFull( final short[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final short[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
@@ -289,7 +289,7 @@ public class KLBJNI extends KLB
     }
 
     @Override
-    public < T extends GenericIntType< ? > > void writeFull( final int[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final int[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
