@@ -20,16 +20,36 @@ ENDIF()
 #add definition to handle large files
 add_definitions(-D_FILE_OFFSET_BITS=64)
 
-#add bzip2 library
-include_directories ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
-add_subdirectory ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
-LINK_DIRECTORIES( "${CMAKE_CURRENT_BINARY_DIR}/external/bzip2-1.0.6" )
 
-#add zlib library
-include_directories ("${PROJECT_SOURCE_DIR}/external/zlib-1.2.8")
-add_subdirectory ("${PROJECT_SOURCE_DIR}/external/zlib-1.2.8")
-LINK_DIRECTORIES( "${CMAKE_CURRENT_BINARY_DIR}/external/zlib-1.2.8" )
-include_directories( "${CMAKE_CURRENT_BINARY_DIR}/external/zlib-1.2.8" ) #for zconf.h
+set (USE_BUNDLED_BZIP2 TRUE CACHE BOOL "Use the bzip2 package bundled with the KLB source code instead finding a pre-installed bzip2 library.")
+if (USE_BUNDLED_BZIP2)
+    #add bzip2 library
+    include_directories ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
+    add_subdirectory ("${PROJECT_SOURCE_DIR}/external/bzip2-1.0.6")
+    LINK_DIRECTORIES( "${CMAKE_CURRENT_BINARY_DIR}/external/bzip2-1.0.6" )
+    set(BZIP2_LIBRARIES bz2lib)
+else()
+    # Use -DBZIP2_INCLUDE_DIR and -DBZIP2_LIBRARY_RELEASE to select the version you want.
+    # https://cmake.org/cmake/help/v3.0/module/FindBZip2.html
+    find_package(BZip2 REQUIRED)
+endif()
+
+
+set (USE_BUNDLED_ZLIB TRUE CACHE BOOL "Use the zlib package bundled with the KLB source code instead finding a pre-installed zlib library.")
+if (USE_BUNDLED_ZLIB)
+    #add zlib library
+    include_directories ("${PROJECT_SOURCE_DIR}/external/zlib-1.2.8")
+    add_subdirectory ("${PROJECT_SOURCE_DIR}/external/zlib-1.2.8")
+    LINK_DIRECTORIES( "${CMAKE_CURRENT_BINARY_DIR}/external/zlib-1.2.8" )
+    include_directories( "${CMAKE_CURRENT_BINARY_DIR}/external/zlib-1.2.8" ) #for zconf.h
+    set(ZLIB_LIBRARIES zlibstatic)
+else()
+    # Use -DZLIB_ROOT to select the version you want.
+    # https://cmake.org/cmake/help/v3.0/module/FindZLIB.html
+    find_package(ZLIB REQUIRED)
+    include_directories (${ZLIB_INCLUDE_DIRS})
+endif()
+
 
 #main sources and headers
 file(GLOB KLB_SRCS ${PROJECT_SOURCE_DIR}/*.cpp)
@@ -39,13 +59,13 @@ file(GLOB KLB_HDRS ${PROJECT_SOURCE_DIR}/*.h)
 #main library 
 IF(NOT TARGET klblib)
 ADD_LIBRARY(klblib ${KLB_SRCS} ${KLB_HDRS})
-target_link_libraries (klblib bz2lib zlibstatic)
+target_link_libraries (klblib ${BZIP2_LIBRARIES} ${ZLIB_LIBRARIES})
 ENDIF()
 
 #main shared library (DLL)
 IF(NOT TARGET klblibs)
 ADD_LIBRARY(klblibs SHARED ${KLB_SRCS} ${KLB_HDRS})
-target_link_libraries (klblibs bz2lib zlibstatic)
+target_link_libraries (klblibs ${BZIP2_LIBRARIES} ${ZLIB_LIBRARIES})
 set_property(TARGET klblibs PROPERTY COMPILE_DEFINITIONS COMPILE_SHARED_LIBRARY)
 set_property(TARGET klblibs PROPERTY OUTPUT_NAME klb)
 ENDIF()
@@ -87,7 +107,7 @@ ENDIF()
 #small executable to test C++11 std::threads and compare it to pbzip2
 IF( NOT TARGET testPbzip2_Cpp11Threads)
 ADD_EXECUTABLE(testPbzip2_Cpp11Threads testPbzip2_Cpp11Threads.cxx)
-target_link_libraries ( testPbzip2_Cpp11Threads bz2lib zlibstatic)
+target_link_libraries ( testPbzip2_Cpp11Threads ${BZIP2_LIBRARIES} ${ZLIB_LIBRARIES})
 ENDIF()
 
 option(BINDINGS_JAVA "Build bindings for Java" off)
@@ -96,7 +116,7 @@ if(BINDINGS_JAVA)
     include_directories (${JNI_INCLUDE_DIRS})
     link_directories(${JNI_LIBRARY_DIRS})
     ADD_LIBRARY(klb-jni SHARED ${KLB_SRCS} ${KLB_HDRS} klb_jni.cxx org_janelia_simview_klb_KLBJNI.cxx)
-    target_link_libraries (klb-jni bz2lib zlibstatic)
+    target_link_libraries (klb-jni ${BZIP2_LIBRARIES} ${ZLIB_LIBRARIES})
     set_property(TARGET klb-jni PROPERTY COMPILE_DEFINITIONS COMPILE_SHARED_LIBRARY)
 endif()
 
