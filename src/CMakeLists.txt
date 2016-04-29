@@ -4,6 +4,8 @@ cmake_minimum_required ( VERSION 2.8 )
 cmake_policy(SET CMP0002 OLD)
 cmake_policy(SET CMP0026 OLD)
 cmake_policy(SET CMP0054 OLD)
+cmake_policy(SET CMP0042 NEW)
+
 
 #folder where all the executables go (this is seens by all elements called using add_subdirectory)
 SET(KLB_BINARY_FOLDER "${PROJECT_SOURCE_DIR}/../bin")
