@@ -1,4 +1,4 @@
-# Keller Lab Block file type (.klb) source C++11 code and API  #
+# Keller Lab Block file type (.klb) C++11 source code and API  #
 
 The KLB is a file format developed at the Keller Lab (Janelia Research Campus) for efficiently storing and retrieving large 5D images (>4GB) using lossless compression. The purpose of this format is to combine JPEG2000-like lossless compression levels with the block flexibility offered by HDF5 for accessing arbitrary regions of interest. Inspired by Parallel BZip2, a common Linux module, we partition images into blocks and compress blocks in parallel using Bzip2. Both reading and writing are parallelized and scale linearly with the number of compute cores, thus making KLB significantly faster than JPEG2000 and HDF5 on common multi-core machines.
 
