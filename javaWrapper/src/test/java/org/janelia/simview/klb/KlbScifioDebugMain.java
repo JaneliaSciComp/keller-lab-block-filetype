@@ -13,7 +13,7 @@ import java.util.List;
 /**
  * Helper class, for testing and debugging only.
  */
-public class KlbDebugMain
+public class KlbScifioDebugMain
 {
 
     public static void main( final String[] args ) throws FormatException, IOException
@@ -88,14 +88,6 @@ public class KlbDebugMain
             writer.close();
         }
         reader.close();
-
-        System.out.println( "Reading image directly" );
-
-        KLB klb = KLB.newInstance();
-        KLB.Header header = klb.readHeader( filePath );
-        System.out.println( header );
-        Img img = klb.readFull( filePath );
-        System.out.println( img.numDimensions() );
 
         System.out.println( "Done." );
     }
