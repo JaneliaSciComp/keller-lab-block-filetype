@@ -22,7 +22,7 @@ import java.util.List;
 public class KlbScifio extends AbstractFormat
 {
 
-    private static final AxisType[] AXIS_TYPES = { Axes.X, Axes.Y, Axes.Z, Axes.CHANNEL, Axes.TIME };
+    protected static final AxisType[] AXIS_TYPES = { Axes.X, Axes.Y, Axes.Z, Axes.CHANNEL, Axes.TIME };
     private static final String[] UNITS = { "um", "um", "um", "au", "s" };
 
     @Override

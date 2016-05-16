@@ -11,7 +11,7 @@ import java.io.IOException;
 import java.nio.Buffer;
 
 
-public class KLBJNI extends KLB
+public class KLBJNI< T extends RealType< T > & NativeType< T > > extends KLB< T >
 {
 
     // load bundled native libraries
@@ -45,6 +45,7 @@ public class KLBJNI extends KLB
     }
 
     @Override
+    @SuppressWarnings( "unchecked" )
     public Header readHeader( final String filePath ) throws IOException
     {
         final Header header = new Header();
@@ -58,34 +59,34 @@ public class KLBJNI extends KLB
 
         switch ( dataAndCompressionType[ 0 ] ) {
             case 0:
-                header.dataType = new UnsignedByteType();
+                header.dataType = ( T ) new UnsignedByteType();
                 break;
             case 1:
-                header.dataType = new UnsignedShortType();
+                header.dataType = ( T ) new UnsignedShortType();
                 break;
             case 2:
-                header.dataType = new UnsignedIntType();
+                header.dataType = ( T ) new UnsignedIntType();
                 break;
             case 3:
-                header.dataType = new UnsignedLongType();
+                header.dataType = ( T ) new UnsignedLongType();
                 break;
             case 4:
-                header.dataType = new ByteType();
+                header.dataType = ( T ) new ByteType();
                 break;
             case 5:
-                header.dataType = new ShortType();
+                header.dataType = ( T ) new ShortType();
                 break;
             case 6:
-                header.dataType = new IntType();
+                header.dataType = ( T ) new IntType();
                 break;
             case 7:
-                header.dataType = new LongType();
+                header.dataType = ( T ) new LongType();
                 break;
             case 8:
-                header.dataType = new FloatType();
+                header.dataType = ( T ) new FloatType();
                 break;
             case 9:
-                header.dataType = new DoubleType();
+                header.dataType = ( T ) new DoubleType();
                 break;
             default:
                 throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
@@ -258,7 +259,7 @@ public class KLBJNI extends KLB
      ***********************************************************/
 
     @Override
-    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final byte[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final byte[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
@@ -267,7 +268,7 @@ public class KLBJNI extends KLB
     }
 
     @Override
-    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final Buffer img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final Buffer img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
@@ -280,7 +281,7 @@ public class KLBJNI extends KLB
     // This avoids copying the image to convert from byte[] to short[], int[], etc.
 
     @Override
-    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final short[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final short[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
@@ -289,7 +290,7 @@ public class KLBJNI extends KLB
     }
 
     @Override
-    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final int[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final int[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
@@ -298,7 +299,7 @@ public class KLBJNI extends KLB
     }
 
     @Override
-    public < T extends RealType< ? > & NativeType< ? > > void writeFull( final long[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final long[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
@@ -310,7 +311,7 @@ public class KLBJNI extends KLB
     public void writeFull( final float[] img, final String filePath, final long[] imageSize, final FloatType dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
-        final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
+        final int err = jniWriteFull( img, filePath, imageSize, getDataType( ( T ) dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
         if ( err != 0 )
             throw new IOException( "Failed to write " + err );
     }
@@ -319,7 +320,7 @@ public class KLBJNI extends KLB
     public void writeFull( final double[] img, final String filePath, final long[] imageSize, final DoubleType dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
-        final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
+        final int err = jniWriteFull( img, filePath, imageSize, getDataType( ( T ) dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
         if ( err != 0 )
             throw new IOException( "Failed to write " + err );
     }
@@ -333,11 +334,10 @@ public class KLBJNI extends KLB
      * Get value of data type enum of native library.
      *
      * @param dataType
-     * @param <T>
      * @return
      * @throws IOException
      */
-    private < T extends RealType< ? > & NativeType< ? > > int getDataType( final T dataType ) throws IOException
+    private int getDataType( final T dataType ) throws IOException
     {
         if ( dataType instanceof UnsignedByteType )
             return 0;
