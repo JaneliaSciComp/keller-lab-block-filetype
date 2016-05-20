@@ -308,19 +308,19 @@ public class KLBJNI< T extends RealType< T > & NativeType< T > > extends KLB< T 
     }
 
     @Override
-    public void writeFull( final float[] img, final String filePath, final long[] imageSize, final FloatType dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final float[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
-        final int err = jniWriteFull( img, filePath, imageSize, getDataType( ( T ) dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
+        final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
         if ( err != 0 )
             throw new IOException( "Failed to write " + err );
     }
 
     @Override
-    public void writeFull( final double[] img, final String filePath, final long[] imageSize, final DoubleType dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final double[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
-        final int err = jniWriteFull( img, filePath, imageSize, getDataType( ( T ) dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
+        final int err = jniWriteFull( img, filePath, imageSize, getDataType( dataType ), numThreads, pixelSpacing, blockSize, getCompressionType( compressionType ), metadata );
         if ( err != 0 )
             throw new IOException( "Failed to write " + err );
     }

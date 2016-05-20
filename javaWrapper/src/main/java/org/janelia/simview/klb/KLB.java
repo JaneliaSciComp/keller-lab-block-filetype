@@ -7,6 +7,7 @@ import net.imagej.axis.CalibratedAxis;
 import net.imagej.axis.LinearAxis;
 import net.imglib2.Cursor;
 import net.imglib2.img.Img;
+import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.array.ArrayImgs;
 import net.imglib2.img.basictypeaccess.array.*;
 import net.imglib2.img.cell.CellImg;
@@ -565,7 +566,7 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         writeFull( buffer.array(), filePath, imageSize, dataType, pixelSpacing, blockSize, compressionType, metadata );
     }
 
-    public void writeFull( final float[] img, final String filePath, final long[] imageSize, final FloatType dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final float[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final ByteBuffer buffer = ByteBuffer.allocate( 4 * img.length );
@@ -573,7 +574,7 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         writeFull( buffer.array(), filePath, imageSize, ( T ) dataType, pixelSpacing, blockSize, compressionType, metadata );
     }
 
-    public void writeFull( final double[] img, final String filePath, final long[] imageSize, final DoubleType dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+    public void writeFull( final double[] img, final String filePath, final long[] imageSize, final T dataType, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
         final ByteBuffer buffer = ByteBuffer.allocate( 8 * img.length );
@@ -591,49 +592,24 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         final long[] dims = { 1, 1, 1, 1, 1 };
         img.dimensions( dims );
         final T type = img.firstElement();
-        final Cursor< T > cur = img.cursor();
         if ( type instanceof GenericByteType ) {
-            final byte[] buffer = new byte[ ( int ) size ];
-            int i = 0;
-            while ( cur.hasNext() ) {
-                buffer[ i++ ] = ( byte ) cur.next().getRealDouble();
-            }
+            final byte[] buffer = (( ArrayImg< ?, ByteArray > ) img).update( null ).getCurrentStorageArray();
             writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
         } else if ( type instanceof GenericShortType ) {
-            final short[] buffer = new short[ ( int ) size ];
-            int i = 0;
-            while ( cur.hasNext() ) {
-                buffer[ i++ ] = ( short ) cur.next().getRealDouble();
-            }
+            final short[] buffer = (( ArrayImg< ?, ShortArray > ) img).update( null ).getCurrentStorageArray();
             writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
         } else if ( type instanceof GenericIntType ) {
-            final int[] buffer = new int[ ( int ) size ];
-            int i = 0;
-            while ( cur.hasNext() ) {
-                buffer[ i++ ] = ( int ) cur.next().getRealDouble();
-            }
+            final int[] buffer = (( ArrayImg< ?, IntArray > ) img).update( null ).getCurrentStorageArray();
             writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
         } else if ( type instanceof LongType ) {
-            final long[] buffer = new long[ ( int ) size ];
-            int i = 0;
-            while ( cur.hasNext() ) {
-                buffer[ i++ ] = ( long ) cur.next().getRealDouble();
-            }
+            final long[] buffer = (( ArrayImg< ?, LongArray > ) img).update( null ).getCurrentStorageArray();
             writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
         } else if ( type instanceof FloatType ) {
-            final float[] buffer = new float[ ( int ) size ];
-            int i = 0;
-            while ( cur.hasNext() ) {
-                buffer[ i++ ] = cur.next().getRealFloat();
-            }
-            writeFull( buffer, filePath, dims, ( FloatType ) type, pixelSpacing, blockSize, compressionType, metadata );
+            final float[] buffer = (( ArrayImg< ?, FloatArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
         } else if ( type instanceof DoubleType ) {
-            final double[] buffer = new double[ ( int ) size ];
-            int i = 0;
-            while ( cur.hasNext() ) {
-                buffer[ i++ ] = cur.next().getRealDouble();
-            }
-            writeFull( buffer, filePath, dims, ( DoubleType ) type, pixelSpacing, blockSize, compressionType, metadata );
+            final double[] buffer = (( ArrayImg< ?, DoubleArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
         } else {
             throw new IOException( "Unknown or unsupported KLB data type" );
         }
@@ -659,7 +635,7 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
                 pixelSpacing[ 4 ] = scale;
             }
         }
-        writeFull( img, filePath, pixelSpacing, blockSize, compressionType, metadata );
+        writeFull( img.getImg(), filePath, pixelSpacing, blockSize, compressionType, metadata );
     }
 
 
