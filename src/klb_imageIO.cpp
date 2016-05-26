@@ -961,7 +961,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 
 	std::uint64_t numBlocks = header.getNumBlocks();
 	char* bufferIn = new char[blockSizeBytes];//temporary storage for decompressed block
-	char* bufferFile = new char[blockSizeBytes];//temporary storage for compressed block from file
+	char* bufferFile = new char[maximumBlockSizeCompressedInBytes()];//temporary storage for compressed block from file
 
 	//main loop to keep processing blocks while they are available
 	while (1)
@@ -1113,7 +1113,7 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 	fclose(fid);
 	delete[] bufferIn;
 	delete[] bufferFile;
-
+	printf("hi\n");
 }
 
 //=========================================================================
@@ -1608,8 +1608,11 @@ std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
 			constant	 overhead  in  the region of 50 bytes.Random data(including
 			the output of most file compressors) is coded at about  8.05  bits  per
 			byte, giving an expansion of around 0.5%.
+
+			(ngc) testing indicates the man page is wrong.  For encoding random floats,
+			need a factor of at least 1.33.  Using 2 just to be safe.
 		*/
-		blockSizeBytes = ceil(((float)blockSizeBytes) * 1.05f + 50.0f );
+		blockSizeBytes = ceil(((float)blockSizeBytes) * 2.0f + 50.0f );
 		break;
 	case KLB_COMPRESSION_TYPE::ZLIB:
 		//nothing to do;		
