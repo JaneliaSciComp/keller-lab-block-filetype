@@ -6,6 +6,9 @@ cmake_policy(SET CMP0026 OLD)
 cmake_policy(SET CMP0054 OLD)
 cmake_policy(SET CMP0042 NEW)
 
+enable_testing()
+include(CTest)
+add_subdirectory(test)
 
 #folder where all the executables go (this is seens by all elements called using add_subdirectory)
 SET(KLB_BINARY_FOLDER "${PROJECT_SOURCE_DIR}/../bin")
@@ -56,7 +59,7 @@ file(GLOB KLB_SRCS ${PROJECT_SOURCE_DIR}/*.cpp)
 file(GLOB KLB_HDRS ${PROJECT_SOURCE_DIR}/*.h)
 
 
-#main library 
+#main library
 IF(NOT TARGET klblib)
 ADD_LIBRARY(klblib ${KLB_SRCS} ${KLB_HDRS})
 target_link_libraries (klblib ${BZIP2_LIBRARIES} ${ZLIB_LIBRARIES})
@@ -100,7 +103,7 @@ IF( CMAKE_COMPILER_IS_GNUCC )
 	set (CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -lstdc++")#so the C wrappers have access to std::threads
 ENDIF()
 
-IF( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" ) 
+IF( "${CMAKE_CXX_COMPILER_ID}" STREQUAL "Clang" )
 	set (CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -std=c++11") #to allow C+11 features in older GCC compilers
 ENDIF()
 

@@ -1,0 +1,5 @@
+set(tgt write_float_bz2)
+add_executable(${tgt} write_float_bz2.c)
+target_link_libraries(${tgt} klblib)
+target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR}/..)
+add_test(test-${tgt} ${tgt})
