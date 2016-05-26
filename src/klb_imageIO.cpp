@@ -1113,7 +1113,6 @@ void klb_imageIO::blockUncompressorImageFull(char* bufferOut, std::atomic<uint64
 	fclose(fid);
 	delete[] bufferIn;
 	delete[] bufferFile;
-	printf("hi\n");
 }
 
 //=========================================================================
@@ -1600,9 +1599,10 @@ std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
 	case KLB_COMPRESSION_TYPE::NONE://no compression
 		//nothing to do
 		break;
-	case KLB_COMPRESSION_TYPE::BZIP2://bzip2
+	case KLB_COMPRESSION_TYPE::BZIP2:
+	case KLB_COMPRESSION_TYPE::ZLIB:
 		/*
-			From man page: Compression is  always  performed,  even	 if  the  compressed  file  is
+			From bzip2 man page: Compression is  always  performed,  even	 if  the  compressed  file  is
 			slightly	 larger	 than the original.Files of less than about one hun -
 			dred bytes tend to get larger, since the compression  mechanism	has  a
 			constant	 overhead  in  the region of 50 bytes.Random data(including
@@ -1613,9 +1613,6 @@ std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
 			need a factor of at least 1.33.  Using 2 just to be safe.
 		*/
 		blockSizeBytes = ceil(((float)blockSizeBytes) * 2.0f + 50.0f );
-		break;
-	case KLB_COMPRESSION_TYPE::ZLIB:
-		//nothing to do;		
 		break;
 	default:
 		std::cout << "ERROR: maximumBlockSizeCompressedInBytes: compression type not implemented" << std::endl;

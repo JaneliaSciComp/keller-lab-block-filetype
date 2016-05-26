@@ -12,8 +12,8 @@ static int write(void *data) {
     const float32_t pixelSize[KLB_DATA_DIMS]={1.0f,1.0f,1.0f,1.0f,1.0f};    
 	const uint32_t blockSize[KLB_DATA_DIMS]={4,4,4,1,1};
 	//return writeKLBstack(data,FILENAME,xyzct,FLOAT32_TYPE,-1,pixelSize, blockSize,NONE,0);
-	//return writeKLBstack(data,FILENAME,xyzct,FLOAT32_TYPE,-1,pixelSize, blockSize,ZLIB,0);
-    return writeKLBstack(data,FILENAME,xyzct,FLOAT32_TYPE,-1,pixelSize, blockSize,BZIP2,0);
+	return writeKLBstack(data,FILENAME,xyzct,FLOAT32_TYPE,-1,pixelSize, blockSize,ZLIB,0);
+    //return writeKLBstack(data,FILENAME,xyzct,FLOAT32_TYPE,-1,pixelSize, blockSize,BZIP2,0);
 }
 
 int main(int argc,char* argv[]) {
