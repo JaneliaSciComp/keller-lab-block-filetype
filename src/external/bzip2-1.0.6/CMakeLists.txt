@@ -1,24 +1,21 @@
-project ( bzip2 )
-cmake_minimum_required ( VERSION 2.8 )
+set(SRCS
+	crctable.c
+	randtable.c
+	compress.c
+	decompress.c
+	bzlib.c
+	blocksort.c
+    huffman.c)
 
-IF( CMAKE_COMPILER_IS_GNUCC )
-	add_definitions ( -D_FILE_OFFSET_BITS=64 -fPIC )
-ENDIF()
+set(tgt bzip2)
+add_library(${tgt}  STATIC ${SRCS})
+target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
+set(tgt bzip2s)
+add_library(${tgt} SHARED ${SRCS} libbz2.def)
+target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 
-# Library
-set ( BZIP2_SRCS  crctable.c randtable.c compress.c decompress.c bzlib.c blocksort.c huffman.c)
+#add_executable(bzip2 bzip2.c ${SRCS})
 
-IF ( NOT TARGET bz2lib )
-add_library ( bz2lib ${BZIP2_SRCS} libbz2.def )
-ENDIF()
-
-IF ( NOT TARGET bzip2 )
-add_executable ( bzip2 bzip2.c )
-target_link_libraries ( bzip2 bz2lib )
-ENDIF()
-
-IF ( NOT TARGET bzip2recover )
-add_executable ( bzip2recover bzip2recover.c )
-ENDIF()
-
+#add_executable(bzip2recover bzip2recover.c)
+#target_link_libraries(bzip2recover bz2)

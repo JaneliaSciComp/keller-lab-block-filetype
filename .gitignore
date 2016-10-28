@@ -1,4 +1,5 @@
 build
+flags.txt
 *.asv
 *.mexw64.pdb
 KLBheaderUpdate
