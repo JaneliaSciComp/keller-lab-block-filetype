@@ -1,5 +1,5 @@
-cmake_minimum_required(VERSION 3.0)
 project(klb)
+cmake_minimum_required(VERSION 3.0)
 
 include(cmake/git-versioning.cmake)
 
@@ -14,4 +14,4 @@ add_subdirectory(src)
 add_subdirectory(test)
 
 include(InstallRequiredSystemLibraries)
-include(CPack) # enable packaging
+include(CPack)

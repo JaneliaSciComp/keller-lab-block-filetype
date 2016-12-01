@@ -1,4 +1,7 @@
 add_subdirectory(bzip2-1.0.6)
+
+set(SKIP_INSTALL_ALL       TRUE)
+set(SKIP_INSTALL_EXPORT    TRUE)
 add_subdirectory(zlib-1.2.8)
 
 # organize things for the IDE
