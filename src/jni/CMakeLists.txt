@@ -1,6 +1,6 @@
 find_package(JNI REQUIRED)
 
-add_library(klb-jni SHARED klb_jni.cxx org_janelia_simview_klb_KLBJNI.cxx)
+add_library(klb-jni SHARED org_janelia_simview_klb_KLBJNI.cpp)
 target_include_directories(klb-jni PUBLIC ${JNI_INCLUDE_DIRS})
 target_link_libraries (klb-jni klb)
 
