@@ -11,6 +11,7 @@ target_link_libraries(${tgt} bzip2 zlibstatic)
 set(tgt klb)
 add_library(${tgt} SHARED ${SRCS} ${HDRS})
 target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
+target_compile_definitions(${tgt} PRIVATE COMPILE_SHARED_LIBRARY)
 target_link_libraries(${tgt} bzip2 zlibstatic)
 
 find_package(JNI)
