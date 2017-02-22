@@ -1,3 +1,5 @@
+find_package(Threads REQUIRED)
+
 set(tgt write_float_bz2)
 add_executable(${tgt} write_float_bz2.c)
 target_link_libraries(${tgt} klb_static)
@@ -43,6 +45,6 @@ add_test(test-${tgt} ${tgt})
 #small executable to test C++11 std::threads and compare it to pbzip2
 set(tgt testPbzip2_Cpp11Threads)
 add_executable(${tgt} testPbzip2_Cpp11Threads.cxx)
-target_link_libraries (${tgt} bzip2 zlib)
+target_link_libraries (${tgt} Threads::Threads bzip2 zlib)
 set_target_properties(${tgt} PROPERTIES FOLDER test)
 add_test(test-${tgt} ${tgt})
