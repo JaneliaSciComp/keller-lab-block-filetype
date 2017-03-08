@@ -9,9 +9,13 @@ set(CMAKE_POSITION_INDEPENDENT_CODE ON)
 set(CMAKE_C_STANDARD   99)
 set(CMAKE_CXX_STANDARD 11)
 
-enable_testing()
 add_subdirectory(src)
-add_subdirectory(test)
+
+option(build_tests "Build tests" OFF)
+if (build_tests)
+    enable_testing()
+    add_subdirectory(test)
+endif()
 
 include(InstallRequiredSystemLibraries)
 include(CPack)
