@@ -2,6 +2,7 @@ package org.janelia.simview.klb;
 
 import net.imagej.ImgPlus;
 import net.imglib2.Cursor;
+import net.imglib2.img.Img;
 import net.imglib2.img.array.ArrayImg;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.type.numeric.RealType;
@@ -96,6 +97,44 @@ public class KlbTest
     }
 
     @Test
+    public void readArrayImgFullInPlace()
+    {
+        KLB.Header header = null;
+        try {
+            header = klb.readHeader( testReadFilePath );
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }
+        assertNotNull( header );
+
+        final Img img = klb.newEmptyImage( header.imageSize, header.blockSize, header.dataType );
+        try {
+            klb.readFullInPlace( testReadFilePath, img, true );
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }
+
+        assertNotNull( img );
+        assertTrue( img instanceof ArrayImg );
+        assertEquals( 3, img.numDimensions() );
+
+        final long[] dims = new long[ 3 ];
+        img.dimensions( dims );
+        assertArrayEquals( new long[]{ 101, 151, 29 }, dims );
+
+        double mean = 0;
+        long n = 1;
+        for ( final long d : dims ) {
+            n *= d;
+        }
+        final Cursor< ? extends RealType< ? > > cur = img.cursor();
+        while ( cur.hasNext() ) {
+            mean += cur.next().getRealDouble() / n;
+        }
+        assertEquals( 352, Math.round( mean ) );
+    }
+
+    @Test
     public void readArrayImgROI()
     {
         final long[] min = { 15, 15, 9, 0, 0 }, max = { 99, 99, 11, 0, 0 };
@@ -109,6 +148,50 @@ public class KlbTest
 
         assertNotNull( img );
         assertTrue( img.getImg() instanceof ArrayImg );
+        assertEquals( 3, img.numDimensions() );
+
+        final long[] dims = new long[ 3 ];
+        img.dimensions( dims );
+        assertArrayEquals( new long[]{ 1 + max[ 0 ] - min[ 0 ], 1 + max[ 1 ] - min[ 1 ], 1 + max[ 2 ] - min[ 2 ] }, dims );
+
+        double mean = 0;
+        long n = 1;
+        for ( final long d : dims ) {
+            n *= d;
+        }
+        final Cursor< ? extends RealType< ? > > cur = img.cursor();
+        while ( cur.hasNext() ) {
+            mean += cur.next().getRealDouble() / n;
+        }
+        assertEquals( 568, Math.round( mean ) );
+    }
+
+    @Test
+    public void readArrayImgROIinPlace()
+    {
+        KLB.Header header = null;
+        try {
+            header = klb.readHeader( testReadFilePath );
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }
+        assertNotNull( header );
+
+        final long[] min = { 15, 15, 9, 0, 0 }, max = { 99, 99, 11, 0, 0 };
+        final long[] roiSize = new long[ min.length ];
+        for ( int i = 0; i < min.length; ++i ) {
+            roiSize[ i ] = 1 + max[ i ] - min[ i ];
+        }
+
+        final Img img = klb.newEmptyImage( roiSize, header.blockSize, header.dataType );
+        try {
+            klb.readROIinPlace( testReadFilePath, min, max, img, true );
+        } catch ( IOException e ) {
+            e.printStackTrace();
+        }
+
+        assertNotNull( img );
+        assertTrue( img instanceof ArrayImg );
         assertEquals( 3, img.numDimensions() );
 
         final long[] dims = new long[ 3 ];
