@@ -599,34 +599,33 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
      * Helper functions
      ***********************************************************/
 
-    private long[] squeeze( final long[] dims )
+    private long[][] getSqueezedImageAndBlockSize( final long[] imageSize, final long[] blockSize )
     {
         int i = 0;
-        for ( final long d : dims ) {
+        for ( final long d : imageSize ) {
             if ( d > 1 ) {
                 i++;
             }
         }
-        final long[] squeezed = new long[ i ];
-        i = 0;
-        for ( final long d : dims ) {
-            if ( d > 1 ) {
-                squeezed[ i++ ] = d;
-            }
-        }
-        return squeezed;
-    }
+        final long[][] squeezed = new long[ 2 ][ i ];
 
-    private long[] squeezeBlockSize( final Header header, final int numNonSingletonDims )
-    {
-        final long[] squeezedBlockSize = new long[ numNonSingletonDims ];
-        int i = 0;
-        for ( int d = 0; d < 5; ++d ) {
-            if ( header.imageSize[ d ] > 1 ) {
-                squeezedBlockSize[ i++ ] = ( int ) header.blockSize[ d ];
+        i = 0;
+        for ( final long d : imageSize ) {
+            if ( d > 1 ) {
+                squeezed[ 0 ][ i++ ] = d;
             }
         }
-        return squeezedBlockSize;
+
+        if ( blockSize != null ) {
+            i = 0;
+            for ( int d = 0; d < imageSize.length; ++d ) {
+                if ( imageSize[ d ] > 1 ) {
+                    squeezed[ 1 ][ i++ ] = blockSize[ d ];
+                }
+            }
+        }
+
+        return squeezed;
     }
 
     private ImgPlus< T > imgToImgPlus( final Img< T > img, final Header header, final String name )
@@ -643,76 +642,93 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         return new ImgPlus< T >( img, name, axisTypes, pixelSpacing );
     }
 
+    public Img< T > newEmptyImage( final long[] imageSize, final long[] blockSize, final T type )
+    {
+        // ToDo: duplicate call of getSqueezedImageAndBlockSize
+        final long[][] imgBlkSize = getSqueezedImageAndBlockSize( imageSize, blockSize );
+        return getImgFactory( imageSize, blockSize ).create( imgBlkSize[ 0 ], type );
+    }
+
     /**
-     * When reading a KLB image as a CellImg, it is desirable to use as few Cells as possible.
-     * On the other hand, the Cells should be aligned with the KLB blocks (i.e. each Cell should be an integer multiple
-     * of KLB blocks), and the excess volume (waste) should be minimal.
-     * <p>
-     * This function tries to come up with the highest integer multiple of KLB blocks, in each dimension, that requires
-     * the smallest waste volume.
-     * <p>
-     * The length of the multipliers vector determines how many dimensions will be considered. Generally, using int[3]
-     * is a good idea, since this will try to optimize the Cell dimensions in x,y,z but leave c,t alone.
+     * Returns an ImgFactory that is appropriate for the given imageSize (ArrayImgFactory if possible, else
+     * CellImgFactory). In case a CellImgFactory is required, the shape of the ImgCells is chosen such that the image
+     * is stored in as few as possible contiguous arrays and aligned with the KLB blocks to avoid KLB blocks that
+     * intersect with multiple Cells and thus need to be loaded multiple times.
      *
      * @param imageSize
      * @param blockSize
-     * @return cellSize
+     * @return
      */
-    protected int[] getCellSize( final long[] imageSize, final long[] blockSize )
+    public ImgFactory< T > getImgFactory( final long[] imageSize, final long[] blockSize )
     {
-        final int[] multipliers = new int[ imageSize.length ];
-        Arrays.fill( multipliers, 1 );
-        for ( int d = 0; d < multipliers.length; ++d ) {
-            final long imageLength = imageSize[ d ];
-            final long singleBlockLength = blockSize[ d ];
+        final long[][] imgBlkSize = getSqueezedImageAndBlockSize( imageSize, blockSize );
+        final int[] cellSize = blockSize != null ? getOptimalCellSize( imgBlkSize[ 0 ], imgBlkSize[ 1 ] ) : getOptimalCellSize( imgBlkSize[ 0 ], null );
+        return cellSize != null ? new CellImgFactory< T >( cellSize ) : new ArrayImgFactory< T >();
+    }
 
-            int multiplier = 1;
-            long multiBlockLength = multiplier * singleBlockLength;
-            int numBlocks = ( int ) Math.ceil( ( float ) imageLength / multiBlockLength );
-            long cellImgLength = numBlocks * multiBlockLength;
-            int minWaste = ( int ) (cellImgLength - imageLength);
-            multipliers[ d ] = multiplier;
+    /**
+     * Returns an ImgFactory that is appropriate for the given imageSize (ArrayImgFactory if possible, else
+     * CellImgFactory). In case a CellImgFactory is required, the shape of the ImgCells is chosen such that the image
+     * is stored in as few as possible contiguous arrays and aligned with the KLB blocks to avoid KLB blocks that
+     * intersect with multiple Cells and thus need to be loaded multiple times.
+     *
+     * @param imageSize
+     * @param blockSize
+     * @return
+     */
+    public ImgFactory< T > getImgFactory( final Dimensions imageSize, final long[] blockSize )
+    {
+        final long[] size = new long[ imageSize.numDimensions() ];
+        imageSize.dimensions( size );
+        return getImgFactory( size, blockSize );
+    }
 
-            while ( multiBlockLength < imageLength * 0.66 ) {
-                multiBlockLength = ++multiplier * singleBlockLength;
-                numBlocks = ( int ) Math.ceil( ( float ) imageLength / multiBlockLength );
-                cellImgLength = numBlocks * multiBlockLength;
-                final int waste = ( int ) (cellImgLength - imageLength);
-                if ( waste <= minWaste ) {
-                    multipliers[ d ] = multiplier;
-                    minWaste = waste;
+    /**
+     * When reading a KLB image as a CellImg, the shape of the ImgCells should be chosen such that the image is stored
+     * in as few as possible contiguous arrays. The ImgCells should also be aligned with the KLB blocks to avoid KLB
+     * blocks that intersect with multiple Cells and thus need to be loaded multiple times. This function returns a
+     * proposed optimal Cell shape given the provided image and block size.
+     * <p>
+     * For convenience, it is valid to ignore the blockSize by passing null. If the image can be stored as an ArrayImg,
+     * this function returns null.
+     *
+     * @param imageSize
+     * @param blockSize can be null
+     * @return cellSize or null if an image of size imageSize can be stored as ArrayImg
+     */
+    private int[] getOptimalCellSize( final long[] imageSize, final long[] blockSize )
+    {
+        // todo: blockSize is currently not considered
+        // todo: partitioning suboptimal
+        long size = 1;
+        for ( final long i : imageSize ) {
+            size *= i;
+        }
+        final int numPartitions = ( int ) Math.ceil( ( double ) size / Integer.MAX_VALUE );
+        final int[] cellSize = numPartitions > 1 ? new int[ imageSize.length ] : null;
+        if ( cellSize != null ) {
+            int partitionDim = imageSize.length - 1;
+            while ( imageSize[ partitionDim ] < numPartitions ) {
+                partitionDim--;
+            }
+
+            final int partitionLength = ( int ) Math.ceil( ( double ) imageSize[ partitionDim ] / numPartitions );
+            for ( int i = 0; i < cellSize.length; ++i ) {
+                cellSize[ i ] = i == partitionDim ? partitionLength : ( int ) imageSize[ i ];
+            }
+
+            size = 1;
+            for ( final long i : cellSize ) {
+                size *= i;
+            }
+            while ( size > Integer.MAX_VALUE ) {
+                cellSize[ partitionDim ] -= 1;
+                size = 1;
+                for ( final long i : cellSize ) {
+                    size *= i;
                 }
             }
         }
-
-        if ( false ) { // set to true for diagnostic output
-            System.out.println( "Single block " + Arrays.toString( blockSize ) );
-            System.out.println( "Multipliers  " + Arrays.toString( multipliers ) );
-            final long[] temp = blockSize.clone();
-            for ( int d = 0; d < multipliers.length; ++d )
-                temp[ d ] *= multipliers[ d ];
-            System.out.println( "Multi block  " + Arrays.toString( temp ) );
-            System.out.println( "Image size   " + Arrays.toString( imageSize ) );
-            final int[] numBlocks = new int[ temp.length ];
-            for ( int d = 0; d < numBlocks.length; ++d )
-                numBlocks[ d ] = ( int ) Math.ceil( ( float ) imageSize[ d ] / temp[ d ] );
-            System.out.println( "Num blocks   " + Arrays.toString( numBlocks ) );
-            for ( int d = 0; d < temp.length; ++d )
-                temp[ d ] *= numBlocks[ d ];
-            System.out.println( "CellImg size " + Arrays.toString( temp ) );
-            for ( int d = 0; d < temp.length; ++d )
-                temp[ d ] -= imageSize[ d ];
-            System.out.println( "Waste        " + Arrays.toString( temp ) );
-        }
-
-        long numElements = 1;
-        for ( int d = 0; d < multipliers.length; ++d ) {
-            multipliers[ d ] *= blockSize[ d ];
-            numElements *= multipliers[ d ];
-        }
-        if ( numElements > Integer.MAX_VALUE ) {
-            throw new IllegalArgumentException( "ImgCell size is too big." );
-        }
-        return multipliers;
+        return cellSize;
     }
 }
