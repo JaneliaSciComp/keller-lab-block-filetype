@@ -6,24 +6,36 @@ import net.imagej.axis.AxisType;
 import net.imagej.axis.CalibratedAxis;
 import net.imagej.axis.LinearAxis;
 import net.imglib2.Cursor;
+import net.imglib2.Dimensions;
+import net.imglib2.RandomAccess;
 import net.imglib2.img.Img;
+import net.imglib2.img.ImgFactory;
 import net.imglib2.img.array.ArrayImg;
-import net.imglib2.img.array.ArrayImgs;
+import net.imglib2.img.array.ArrayImgFactory;
 import net.imglib2.img.basictypeaccess.array.*;
+import net.imglib2.img.cell.Cell;
 import net.imglib2.img.cell.CellImg;
 import net.imglib2.img.cell.CellImgFactory;
-import net.imglib2.img.cell.DefaultCell;
+import net.imglib2.img.planar.PlanarImg;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.IntegerType;
 import net.imglib2.type.numeric.RealType;
-import net.imglib2.type.numeric.integer.*;
+import net.imglib2.type.numeric.integer.GenericByteType;
+import net.imglib2.type.numeric.integer.GenericIntType;
+import net.imglib2.type.numeric.integer.GenericShortType;
+import net.imglib2.type.numeric.integer.LongType;
 import net.imglib2.type.numeric.real.DoubleType;
 import net.imglib2.type.numeric.real.FloatType;
 
 import java.io.IOException;
 import java.nio.Buffer;
 import java.nio.ByteBuffer;
+import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.List;
+import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutorService;
+import java.util.concurrent.Executors;
 
 public abstract class KLB< T extends RealType< T > & NativeType< T > >
 {
@@ -170,114 +182,63 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         bytes.asDoubleBuffer().get( out );
     }
 
-    /**
-     * Read the entire image. Returns an instance of ArrayImg if possible, else CellImg.
-     *
-     * @param filePath file system path to KLB file
-     * @return entire image, as ArrayImg or CellImg, as appropriate
-     * @throws IOException
-     */
-    public ImgPlus< T > readFull( final String filePath )
+    public void readFullInPlace( final String filePath, final Img< T > out, final boolean noChecks )
             throws IOException
     {
-        final Header header = readHeader( filePath );
-        long numElements = 1;
-        for ( final long d : header.imageSize ) {
-            numElements *= d;
+        Header header = null;
+        if ( !noChecks ) {
+            header = readHeader( filePath );
+            long size = 1;
+            for ( final long i : header.imageSize ) {
+                size *= i;
+            }
+            if ( size > out.size() || out.firstElement().getClass() == header.dataType.getClass() ) {
+                throw new IOException( "Size/type mismatch!" );
+            }
         }
-        if ( numElements <= Integer.MAX_VALUE ) {
-            final Img< T > img = readArrayImg( filePath, header, ( int ) numElements );
-            return imgToImgPlus( img, header, filePath );
+        if ( out instanceof CellImg ) {
+            readCellImgInPlace( filePath, header, ( CellImg ) out );
         } else {
-            final Img< T > img = readCellImg( filePath, header );
-            return imgToImgPlus( img, header, filePath );
+            readArrayImgInPlace( filePath, ( ArrayImg ) out );
         }
     }
 
-    @SuppressWarnings( "unchecked" )
-    private Img< T > readArrayImg( final String filePath, final Header header, final int numElements )
+    private < A extends ArrayDataAccess< A > > void readArrayImgInPlace( final String filePath, final ArrayImg< T, A > out )
             throws IOException
     {
-        final T dataType = header.dataType;
-        final long[] imageSize = squeeze( header.imageSize );
-
-        if ( dataType instanceof UnsignedByteType ) {
-            final byte[] buffer = new byte[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.unsignedBytes( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof UnsignedShortType ) {
-            final short[] buffer = new short[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.unsignedShorts( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof UnsignedIntType ) {
-            final int[] buffer = new int[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.unsignedInts( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof UnsignedLongType ) {
-            final long[] buffer = new long[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.longs( buffer, imageSize );
-            return img;
-
-        } else if ( dataType instanceof ByteType ) {
-            final byte[] buffer = new byte[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.bytes( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof ShortType ) {
-            final short[] buffer = new short[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.shorts( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof IntType ) {
-            final int[] buffer = new int[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.ints( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof LongType ) {
-            final long[] buffer = new long[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.longs( buffer, imageSize );
-            return img;
-
-        } else if ( dataType instanceof FloatType ) {
-            final float[] buffer = new float[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.floats( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof DoubleType ) {
-            final double[] buffer = new double[ numElements ];
-            readFullInPlace( filePath, buffer );
-            final Img img = ArrayImgs.doubles( buffer, imageSize );
-            return img;
-
+        final Object buffer = out.update( null ).getCurrentStorageArray();
+        final T type = out.firstElement();
+        if ( type instanceof GenericByteType ) {
+            readFullInPlace( filePath, (byte[]) buffer );
+        } else if ( type instanceof GenericShortType ) {
+            readFullInPlace( filePath, (short[]) buffer );
+        } else if ( type instanceof GenericIntType ) {
+            readFullInPlace( filePath, (int[]) buffer );
+        } else if ( type instanceof LongType ) {
+            readFullInPlace( filePath, (long[]) buffer );
+        } else if ( type instanceof FloatType ) {
+            readFullInPlace( filePath, (float[]) buffer );
+        } else if ( type instanceof DoubleType ) {
+            readFullInPlace( filePath, (double[]) buffer );
         } else {
-            throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
+            throw new IOException( "Unknown or unsupported KLB data type" );
         }
     }
 
-    @SuppressWarnings( "unchecked" )
-    private < A extends ArrayDataAccess< A > > Img< T > readCellImg( final String filePath, final Header header )
+    private < A extends ArrayDataAccess< A > > void readCellImgInPlace( final String filePath, Header header, final CellImg< T, A > out )
             throws IOException
     {
-        final T dataType = header.dataType;
-        final long[] imageSize = squeeze( header.imageSize );
-        final long[] blockSize = squeezeBlockSize( header, imageSize.length );
-        final int[] cellSize = getCellSize( imageSize, blockSize );
-
-        final CellImgFactory< T > factory = new CellImgFactory< T >( cellSize );
-        final CellImg< T, A, DefaultCell< A > > cellImg =
-                ( CellImg< T, A, DefaultCell< A > > ) factory.create( imageSize, dataType );
-        final int[] cellDims = new int[ imageSize.length ];
+        if ( header == null ) {
+            header = readHeader( filePath );
+        }
+        final T type = out.firstElement();
+        final int[] cellDims = new int[ out.numDimensions() ];
         final long[] cellOffset = new long[ cellDims.length ];
         final long[] klbMin = new long[ 5 ];
         final long[] klbMax = new long[ 5 ];
-        final Cursor< DefaultCell< A > > cursor = cellImg.getCells().cursor();
+        final Cursor< Cell< A > > cursor = out.getCells().cursor();
         while ( cursor.hasNext() ) {
-            final DefaultCell< A > cell = cursor.next();
+            final Cell< A > cell = cursor.next();
             cell.dimensions( cellDims );
             cell.min( cellOffset );
             int i = 0;
@@ -289,7 +250,7 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
                     klbMax[ d ] = klbMin[ d ] + cellDims[ i++ ] - 1;
                 }
             }
-            switch ( dataType.getBitsPerPixel() ) {
+            switch ( type.getBitsPerPixel() ) {
                 case 8:
                     readROIinPlace( filePath, klbMin, klbMax, (( ByteArray ) cell.getData()).getCurrentStorageArray() );
                     break;
@@ -297,13 +258,13 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
                     readROIinPlace( filePath, klbMin, klbMax, (( ShortArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 32:
-                    if ( dataType instanceof IntegerType )
+                    if ( type instanceof IntegerType )
                         readROIinPlace( filePath, klbMin, klbMax, (( IntArray ) cell.getData()).getCurrentStorageArray() );
                     else
                         readROIinPlace( filePath, klbMin, klbMax, (( FloatArray ) cell.getData()).getCurrentStorageArray() );
                     break;
                 case 64:
-                    if ( dataType instanceof IntegerType )
+                    if ( type instanceof IntegerType )
                         readROIinPlace( filePath, klbMin, klbMax, (( LongArray ) cell.getData()).getCurrentStorageArray() );
                     else
                         readROIinPlace( filePath, klbMin, klbMax, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
@@ -312,7 +273,27 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
                     throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
             }
         }
-        return cellImg;
+    }
+
+
+    /**
+     * Read the entire image. Returns an instance of ArrayImg if possible, else CellImg.
+     *
+     * @param filePath file system path to KLB file
+     * @return entire image, ArrayImg if possible, else CellImg
+     * @throws IOException
+     */
+    public < A extends ArrayDataAccess< A > > ImgPlus< T > readFull( final String filePath )
+            throws IOException
+    {
+        final Header header = readHeader( filePath );
+        final Img< T > img = newEmptyImage( header.imageSize, header.blockSize, header.dataType );
+        if ( img instanceof CellImg ) {
+            readCellImgInPlace( filePath, header, ( CellImg< T, A > ) img );
+        } else {
+            readArrayImgInPlace( filePath, ( ArrayImg< T, A > ) img );
+        }
+        return imgToImgPlus( img, header, filePath );
     }
 
 
@@ -371,6 +352,105 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         bytes.asDoubleBuffer().get( out );
     }
 
+    public void readROIinPlace( final String filePath, final long[] xyzctMin, final long[] xyzctMax, final Img< T > out, final boolean noChecks )
+            throws IOException
+    {
+        Header header = null;
+        if ( !noChecks ) {
+            header = readHeader( filePath );
+            long size = 1;
+            for ( int i = 0; i < xyzctMin.length; ++i ) {
+                size *= 1 + xyzctMax[ i ] - xyzctMin[ i ];
+            }
+            if ( size > out.size() || out.firstElement().getClass() == header.dataType.getClass() ) {
+                throw new IOException( "Size/type mismatch!" );
+            }
+        }
+        if ( out instanceof CellImg ) {
+            readCellImgROIinPlace( filePath, header, xyzctMin, xyzctMax, ( CellImg ) out );
+        } else {
+            readArrayImgROIinPlace( filePath, xyzctMin, xyzctMax, ( ArrayImg ) out );
+        }
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private < A extends ArrayDataAccess< A > > void readArrayImgROIinPlace( final String filePath, final long[] xyzctMin, final long[] xyzctMax, final ArrayImg< T, A > out )
+            throws IOException
+    {
+        final T type = out.firstElement();
+        if ( type instanceof GenericByteType ) {
+            final byte[] buffer = (( ArrayImg< T, ByteArray > ) out).update( null ).getCurrentStorageArray();
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+        } else if ( type instanceof GenericShortType ) {
+            final short[] buffer = (( ArrayImg< T, ShortArray > ) out).update( null ).getCurrentStorageArray();
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+        } else if ( type instanceof GenericIntType ) {
+            final int[] buffer = (( ArrayImg< T, IntArray > ) out).update( null ).getCurrentStorageArray();
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+        } else if ( type instanceof LongType ) {
+            final long[] buffer = (( ArrayImg< T, LongArray > ) out).update( null ).getCurrentStorageArray();
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+        } else if ( type instanceof FloatType ) {
+            final float[] buffer = (( ArrayImg< T, FloatArray > ) out).update( null ).getCurrentStorageArray();
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+        } else if ( type instanceof DoubleType ) {
+            final double[] buffer = (( ArrayImg< T, DoubleArray > ) out).update( null ).getCurrentStorageArray();
+            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
+        } else {
+            throw new IOException( "Unknown or unsupported KLB data type" );
+        }
+    }
+
+    private < A extends ArrayDataAccess< A > > void readCellImgROIinPlace( final String filePath, Header header, final long[] xyzctMin, final long[] xyzctMax, final CellImg< T, A > out )
+            throws IOException
+    {
+        if ( header == null ) {
+            header = readHeader( filePath );
+        }
+        final T type = out.firstElement();
+        final int[] cellDims = new int[ out.numDimensions() ];
+        final long[] cellOffset = new long[ cellDims.length ];
+        final long[] klbMin = new long[ 5 ];
+        final long[] klbMax = new long[ 5 ];
+        final Cursor< Cell< A > > cursor = out.getCells().cursor();
+        while ( cursor.hasNext() ) {
+            final Cell< A > cell = cursor.next();
+            cell.dimensions( cellDims );
+            cell.min( cellOffset );
+            int i = 0;
+            for ( int d = 0; d < klbMin.length; ++d ) {
+                if ( header.imageSize[ d ] == 1 ) {
+                    klbMin[ d ] = klbMax[ d ] = 0;
+                } else {
+                    klbMin[ d ] = xyzctMin[ d ] + cellOffset[ i ];
+                    klbMax[ d ] = klbMin[ d ] + cellDims[ i++ ] - 1;
+                }
+            }
+            switch ( type.getBitsPerPixel() ) {
+                case 8:
+                    readROIinPlace( filePath, klbMin, klbMax, (( ByteArray ) cell.getData()).getCurrentStorageArray() );
+                    break;
+                case 16:
+                    readROIinPlace( filePath, klbMin, klbMax, (( ShortArray ) cell.getData()).getCurrentStorageArray() );
+                    break;
+                case 32:
+                    if ( type instanceof IntegerType )
+                        readROIinPlace( filePath, klbMin, klbMax, (( IntArray ) cell.getData()).getCurrentStorageArray() );
+                    else
+                        readROIinPlace( filePath, klbMin, klbMax, (( FloatArray ) cell.getData()).getCurrentStorageArray() );
+                    break;
+                case 64:
+                    if ( type instanceof IntegerType )
+                        readROIinPlace( filePath, klbMin, klbMax, (( LongArray ) cell.getData()).getCurrentStorageArray() );
+                    else
+                        readROIinPlace( filePath, klbMin, klbMax, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
+                    break;
+                default:
+                    throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
+            }
+        }
+    }
+
     /**
      * Read subvolume from image. Returns an instance of ArrayImg if possible, else CellImg.
      * <p>
@@ -392,138 +472,14 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
         for ( int d = 0; d < xyzctMin.length; ++d ) {
             roiSize[ d ] = 1 + xyzctMax[ d ] - xyzctMin[ d ];
         }
-        long numElements = 1;
-        for ( final long d : roiSize ) {
-            numElements *= d;
-        }
-        if ( numElements <= Integer.MAX_VALUE ) {
-            final Img< T > img = readArrayImgROI( filePath, header, xyzctMin, xyzctMax, roiSize, ( int ) numElements );
-            return imgToImgPlus( img, header, filePath );
+        // todo: blocks may be out of alignment
+        final Img< T > img = newEmptyImage( roiSize, header.blockSize, header.dataType );
+        if ( img instanceof CellImg ) {
+            readCellImgROIinPlace( filePath, header, xyzctMin, xyzctMax, ( CellImg ) img );
         } else {
-            final Img< T > img = readCellImgROI( filePath, header, xyzctMin, xyzctMax, roiSize );
-            return imgToImgPlus( img, header, filePath );
+            readArrayImgROIinPlace( filePath, xyzctMin, xyzctMax, ( ArrayImg ) img );
         }
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private Img< T > readArrayImgROI( final String filePath, final Header header, final long[] xyzctMin, final long[] xyzctMax, final long[] roiSize, final int numElements )
-            throws IOException
-    {
-        final T dataType = header.dataType;
-        final long[] imageSize = squeeze( roiSize );
-
-        if ( dataType instanceof UnsignedByteType ) {
-            final byte[] buffer = new byte[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.unsignedBytes( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof UnsignedShortType ) {
-            final short[] buffer = new short[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.unsignedShorts( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof UnsignedIntType ) {
-            final int[] buffer = new int[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.unsignedInts( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof UnsignedLongType ) {
-            final long[] buffer = new long[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.longs( buffer, imageSize );
-            return img;
-
-        } else if ( dataType instanceof ByteType ) {
-            final byte[] buffer = new byte[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.bytes( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof ShortType ) {
-            final short[] buffer = new short[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.shorts( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof IntType ) {
-            final int[] buffer = new int[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.ints( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof LongType ) {
-            final long[] buffer = new long[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.longs( buffer, imageSize );
-            return img;
-
-        } else if ( dataType instanceof FloatType ) {
-            final float[] buffer = new float[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.floats( buffer, imageSize );
-            return img;
-        } else if ( dataType instanceof DoubleType ) {
-            final double[] buffer = new double[ numElements ];
-            readROIinPlace( filePath, xyzctMin, xyzctMax, buffer );
-            final Img img = ArrayImgs.doubles( buffer, imageSize );
-            return img;
-
-        } else {
-            throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
-        }
-    }
-
-    @SuppressWarnings( "unchecked" )
-    private < A extends ArrayDataAccess< A > > Img< T > readCellImgROI( final String filePath, final Header header, final long[] xyzctMin, final long[] xyzctMax, final long[] roiSize )
-            throws IOException
-    {
-        final T dataType = header.dataType;
-        final long[] imageSize = squeeze( roiSize );
-        final long[] blockSize = squeezeBlockSize( header, imageSize.length );
-        final int[] cellSize = getCellSize( imageSize, blockSize );
-
-        final CellImgFactory< T > factory = new CellImgFactory< T >( cellSize );
-        final CellImg< T, A, DefaultCell< A > > cellImg =
-                ( CellImg< T, A, DefaultCell< A > > ) factory.create( imageSize, dataType );
-        final Cursor< DefaultCell< A > > cursor = cellImg.getCells().cursor();
-        final int[] cellDims = new int[ roiSize.length ];
-        final long[] cellOffset = new long[ cellDims.length ];
-        final long[] klbMin = new long[ 5 ];
-        final long[] klbMax = new long[ 5 ];
-        while ( cursor.hasNext() ) {
-            final DefaultCell< A > cell = cursor.next();
-            cell.dimensions( cellDims );
-            cell.min( cellOffset );
-            int i = 0;
-            for ( int d = 0; d < klbMin.length; ++d ) {
-                if ( header.imageSize[ d ] == 1 ) {
-                    klbMin[ d ] = klbMax[ d ] = 0;
-                } else {
-                    klbMin[ d ] = xyzctMin[ d ] + cellOffset[ i ];
-                    klbMax[ d ] = klbMin[ d ] + cellDims[ i++ ] - 1;
-                }
-            }
-            switch ( dataType.getBitsPerPixel() ) {
-                case 8:
-                    readROIinPlace( filePath, klbMin, klbMax, (( ByteArray ) cell.getData()).getCurrentStorageArray() );
-                    break;
-                case 16:
-                    readROIinPlace( filePath, klbMin, klbMax, (( ShortArray ) cell.getData()).getCurrentStorageArray() );
-                    break;
-                case 32:
-                    if ( dataType instanceof IntegerType )
-                        readROIinPlace( filePath, klbMin, klbMax, (( IntArray ) cell.getData()).getCurrentStorageArray() );
-                    else
-                        readROIinPlace( filePath, klbMin, klbMax, (( FloatArray ) cell.getData()).getCurrentStorageArray() );
-                    break;
-                case 64:
-                    if ( dataType instanceof IntegerType )
-                        readROIinPlace( filePath, klbMin, klbMax, (( LongArray ) cell.getData()).getCurrentStorageArray() );
-                    else
-                        readROIinPlace( filePath, klbMin, klbMax, (( DoubleArray ) cell.getData()).getCurrentStorageArray() );
-                    break;
-                default:
-                    throw new IOException( String.format( "Unknown or unsupported KLB data type of file %s.", filePath ) );
-            }
-        }
-        return cellImg;
+        return imgToImgPlus( img, header, filePath );
     }
 
 
