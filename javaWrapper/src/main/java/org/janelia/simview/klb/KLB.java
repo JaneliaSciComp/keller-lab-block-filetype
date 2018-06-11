@@ -541,33 +541,12 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
     public void writeFull( final Img< T > img, final String filePath, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
             throws IOException
     {
-        final long size = img.size();
-        if ( size > Integer.MAX_VALUE ) {
-            throw new UnsupportedOperationException( String.format( "KLB Java wrapper (JNI) can currently not write images with more pixels than %d, but this image has %d pixels.", Integer.MAX_VALUE, size ) );
-        }
-        final long[] dims = { 1, 1, 1, 1, 1 };
-        img.dimensions( dims );
-        final T type = img.firstElement();
-        if ( type instanceof GenericByteType ) {
-            final byte[] buffer = (( ArrayImg< ?, ByteArray > ) img).update( null ).getCurrentStorageArray();
-            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
-        } else if ( type instanceof GenericShortType ) {
-            final short[] buffer = (( ArrayImg< ?, ShortArray > ) img).update( null ).getCurrentStorageArray();
-            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
-        } else if ( type instanceof GenericIntType ) {
-            final int[] buffer = (( ArrayImg< ?, IntArray > ) img).update( null ).getCurrentStorageArray();
-            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
-        } else if ( type instanceof LongType ) {
-            final long[] buffer = (( ArrayImg< ?, LongArray > ) img).update( null ).getCurrentStorageArray();
-            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
-        } else if ( type instanceof FloatType ) {
-            final float[] buffer = (( ArrayImg< ?, FloatArray > ) img).update( null ).getCurrentStorageArray();
-            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
-        } else if ( type instanceof DoubleType ) {
-            final double[] buffer = (( ArrayImg< ?, DoubleArray > ) img).update( null ).getCurrentStorageArray();
-            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        if ( img instanceof CellImg ) {
+            writeFull( ( CellImg ) img, filePath, pixelSpacing, blockSize, compressionType, metadata );
+        } else if ( img instanceof PlanarImg ) {
+            writeFull( ( PlanarImg ) img, filePath, pixelSpacing, blockSize, compressionType, metadata );
         } else {
-            throw new IOException( "Unknown or unsupported KLB data type" );
+            writeFull( ( ArrayImg ) img, filePath, pixelSpacing, blockSize, compressionType, metadata );
         }
     }
 
@@ -592,6 +571,124 @@ public abstract class KLB< T extends RealType< T > & NativeType< T > >
             }
         }
         writeFull( img.getImg(), filePath, pixelSpacing, blockSize, compressionType, metadata );
+    }
+
+    @SuppressWarnings( "unchecked" )
+    private < A extends ArrayDataAccess< A > > void writeFull( final ArrayImg< T, A > img, final String filePath, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+            throws IOException
+    {
+        final long[] dims = { 1, 1, 1, 1, 1 };
+        img.dimensions( dims );
+        final T type = img.firstElement();
+        if ( type instanceof GenericByteType ) {
+            final byte[] buffer = (( ArrayImg< T, ByteArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        } else if ( type instanceof GenericShortType ) {
+            final short[] buffer = (( ArrayImg< T, ShortArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        } else if ( type instanceof GenericIntType ) {
+            final int[] buffer = (( ArrayImg< T, IntArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        } else if ( type instanceof LongType ) {
+            final long[] buffer = (( ArrayImg< T, LongArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        } else if ( type instanceof FloatType ) {
+            final float[] buffer = (( ArrayImg< T, FloatArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        } else if ( type instanceof DoubleType ) {
+            final double[] buffer = (( ArrayImg< T, DoubleArray > ) img).update( null ).getCurrentStorageArray();
+            writeFull( buffer, filePath, dims, type, pixelSpacing, blockSize, compressionType, metadata );
+        } else {
+            throw new IOException( "Unknown or unsupported KLB data type" );
+        }
+    }
+
+    private < A extends ArrayDataAccess< A > > void writeFull( final CellImg< T, Cell< A > > img, final String filePath, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+            throws IOException
+    {
+        final T type = img.firstElement();
+        final Cursor< Cell< Cell<A> >> cellCur = img.getCells().cursor();
+        final int[] cellDims = { 1, 1, 1, 1, 1 };
+        final long[] cellDimsL = new long[ cellDims.length ];
+        while ( cellCur.hasNext() ) {
+            final Cell< Cell<A> > cell = cellCur.next();
+            cell.dimensions( cellDims );
+            for ( int i = 0; i < cellDims.length; ++i ) {
+                cellDimsL[ i ] = cellDims[ i ];
+            }
+
+            String minStr = String.format( "[%04d", cell.min( 0 ) );
+            for ( int i = 1; i < img.numDimensions(); ++i ) {
+                minStr += String.format( ",%04d", cell.min( i ) );
+            }
+            minStr += "]";
+
+            String maxStr = String.format( "[%04d", cell.min( 0 ) + cell.dimension( 0 ) - 1 );
+            for ( int i = 1; i < img.numDimensions(); ++i ) {
+                maxStr += String.format( ",%04d", cell.min( i ) + cell.dimension( i ) - 1 );
+            }
+            maxStr += "]";
+
+            final String cellFilePath = filePath.replace( ".klb", String.format( ".%s-%s.klb", minStr, maxStr ) );
+
+            if ( type instanceof GenericByteType ) {
+                final byte[] buffer = ( byte[] ) cell.getData().getData().getCurrentStorageArray();
+                writeFull( buffer, cellFilePath, cellDimsL, type, pixelSpacing, blockSize, compressionType, metadata );
+            } else if ( type instanceof GenericShortType ) {
+                final short[] buffer = ( short[] ) cell.getData().getData().getCurrentStorageArray();
+                writeFull( buffer, cellFilePath, cellDimsL, type, pixelSpacing, blockSize, compressionType, metadata );
+            } else if ( type instanceof GenericIntType ) {
+                final int[] buffer = ( int[] ) cell.getData().getData().getCurrentStorageArray();
+                writeFull( buffer, cellFilePath, cellDimsL, type, pixelSpacing, blockSize, compressionType, metadata );
+            } else if ( type instanceof LongType ) {
+                final long[] buffer = ( long[] ) cell.getData().getData().getCurrentStorageArray();
+                writeFull( buffer, cellFilePath, cellDimsL, type, pixelSpacing, blockSize, compressionType, metadata );
+            } else if ( type instanceof FloatType ) {
+                final float[] buffer = ( float[] ) cell.getData().getData().getCurrentStorageArray();
+                writeFull( buffer, cellFilePath, cellDimsL, type, pixelSpacing, blockSize, compressionType, metadata );
+            } else if ( type instanceof DoubleType ) {
+                final double[] buffer = ( double[] ) cell.getData().getData().getCurrentStorageArray();
+                writeFull( buffer, cellFilePath, cellDimsL, type, pixelSpacing, blockSize, compressionType, metadata );
+            } else {
+                throw new IOException( "Unknown or unsupported KLB data type" );
+            }
+        }
+    }
+
+    private < A extends ArrayDataAccess< A > > void writeFull( final PlanarImg< T, A > img, final String filePath, final float[] pixelSpacing, final long[] blockSize, final CompressionType compressionType, final byte[] metadata )
+            throws IOException
+    {
+        final Img< T > target = getImgFactory( img, blockSize ).create( img, img.firstElement() );
+        final ExecutorService taskExecutor = Executors.newFixedThreadPool( numThreads );
+        final List< Callable< Void > > tasks = new ArrayList< Callable< Void > >();
+        final long size = target.size();
+        final long threadChunkSize = size / numThreads;
+        final long threadChunkMod = size % numThreads;
+        for ( int portionID = 0; portionID < numThreads; ++portionID ) {
+            final long startPosition = portionID * threadChunkSize;
+            final long loopSize = (portionID == numThreads - 1) ? threadChunkSize + threadChunkMod : threadChunkSize;
+            tasks.add(() -> {
+                final RandomAccess< T > sourceRa = img.randomAccess();
+                final Cursor< T > targetCur = target.localizingCursor();
+                targetCur.jumpFwd( startPosition );
+                for ( long j = 0; j < loopSize; ++j ) {
+                    targetCur.fwd();
+                    sourceRa.setPosition( targetCur );
+                    targetCur.get().set( sourceRa.get() );
+                }
+                return null;
+            });
+        }
+
+        try {
+            // invokeAll() returns when all tasks are complete
+            taskExecutor.invokeAll( tasks );
+            taskExecutor.shutdown();
+        } catch ( final InterruptedException e ) {
+            e.printStackTrace();
+        }
+
+        writeFull( target, filePath, pixelSpacing, blockSize, compressionType, metadata );
     }
 
 
