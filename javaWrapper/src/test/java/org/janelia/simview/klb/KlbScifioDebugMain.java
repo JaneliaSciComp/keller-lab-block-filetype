@@ -1,10 +1,9 @@
 package org.janelia.simview.klb;
 
 import io.scif.*;
-import io.scif.common.DataTools;
 import net.imagej.axis.CalibratedAxis;
 import net.imagej.axis.LinearAxis;
-import net.imglib2.img.Img;
+import org.scijava.util.Bytes;
 
 import java.io.File;
 import java.io.IOException;
@@ -61,10 +60,10 @@ public class KlbScifioDebugMain
                 byte[] bytes = plane.getBytes();
                 switch ( bpp ) {
                     case 8:
-                        System.out.format( "%s first pixel value: %d\n", txt, bytes[ 2 ] );
+                        System.out.format( "%s first pixel value: %d\n", txt, bytes[ 0 ] );
                         break;
                     case 16:
-                        System.out.format( "%s first pixel: %d\n", txt, DataTools.bytesToShort( bytes, 2, true ) );
+                        System.out.format( "%s first pixel: %d\n", txt, Bytes.toShort( bytes, true ) );
                         break;
                     default:
                         System.out.println( "%s neither 8 nor 16 bpp, while other data types are supported, no message is generated here" );

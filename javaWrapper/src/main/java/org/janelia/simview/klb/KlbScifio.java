@@ -5,6 +5,7 @@ import io.scif.config.SCIFIOConfig;
 import io.scif.io.RandomAccessInputStream;
 import io.scif.util.FormatTools;
 import net.imagej.axis.*;
+import net.imglib2.Interval;
 import net.imglib2.type.NativeType;
 import net.imglib2.type.numeric.RealType;
 import net.imglib2.type.numeric.integer.*;
@@ -16,9 +17,10 @@ import org.scijava.plugin.Plugin;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 
-@Plugin( type = Format.class, priority = Priority.VERY_HIGH_PRIORITY + 1, name = "Keller Lab Block File Format" )
+@Plugin( type = Format.class, priority = Priority.FIRST, name = "Keller Lab Block File Format" )
 public class KlbScifio extends AbstractFormat
 {
 
@@ -120,8 +122,8 @@ public class KlbScifio extends AbstractFormat
 
         private final KLB klb = KLB.newInstance();
         private final long[]
-                klb_min = new long[ 5 ],
-                klb_max = new long[ 5 ];
+                min = new long[ 5 ],
+                max = new long[ 5 ];
 
         // cache
         private byte[] cachedPlanes;
@@ -129,14 +131,13 @@ public class KlbScifio extends AbstractFormat
         private long cacheMin, cacheMax;
 
         @Override
-        public ByteArrayPlane openPlane( final int imageIndex, final long planeIndex, final ByteArrayPlane plane, final long[] min, final long[] max, final SCIFIOConfig config )
+        public ByteArrayPlane openPlane( final int imageIndex, final long planeIndex, final ByteArrayPlane plane, final Interval bounds, final SCIFIOConfig config )
                 throws FormatException, IOException
         {
-            // ImageJ doesn't currently like >3D planes, but KlbRoi is 5D
-            System.arraycopy( min, 0, klb_min, 0, min.length );
-            System.arraycopy( max, 0, klb_max, 0, max.length );
-            for ( int d = 0; d < max.length; ++d )
-                klb_max[ d ] -= 1;
+            Arrays.fill(min, 0);
+            Arrays.fill(max, 0);
+            bounds.min(min);
+            bounds.max(max);
 
             /*
              * If uncompressed image >2GB, SCIFIO currently has to read 2D planes.
@@ -158,9 +159,9 @@ public class KlbScifio extends AbstractFormat
                 if ( planeIndex < cacheMin || planeIndex > cacheMax ) {
                     cacheMin = (planeIndex / blockDims[ 2 ]) * blockDims[ 2 ];
                     cacheMax = cacheMin + numPlanarBlocks * blockDims[ 2 ] - 1;
-                    klb_min[ 2 ] = cacheMin;
-                    klb_max[ 2 ] = cacheMax;
-                    klb.readROIinPlace( getCurrentFile(), klb_min, klb_max, cachedPlanes );
+                    min[ 2 ] = cacheMin;
+                    max[ 2 ] = cacheMax;
+                    klb.readROIinPlace( getCurrentFile(), min, max, cachedPlanes );
                 }
                 final int start = ( int ) (planeIndex - cacheMin) * numPlaneBytes;
                 System.arraycopy( cachedPlanes, start, plane.getBytes(), 0, numPlaneBytes );
@@ -170,7 +171,7 @@ public class KlbScifio extends AbstractFormat
             }
 
             // if planar axes count >2, read normally
-            klb.readROIinPlace( getCurrentFile(), klb_min, klb_max, plane.getBytes() );
+            klb.readROIinPlace( getCurrentFile(), min, max, plane.getBytes() );
             return plane;
         }
 
@@ -190,9 +191,13 @@ public class KlbScifio extends AbstractFormat
         private final float[] sampling = new float[ 5 ];
 
         @Override
-        public void writePlane( final int imageIndex, final long planeIndex, final Plane plane, final long[] min, final long[] max )
+        protected void writePlane( final int imageIndex, final long planeIndex, final Plane plane, final Interval bounds )
                 throws FormatException, IOException
         {
+            long[] min = new long[ bounds.numDimensions() ];
+            long[] max = new long[ min.length ];
+            bounds.min( min );
+            bounds.max( max );
             log().debug( String.format( "KLB: %s.writePlane(imageIndex %d, planeIndex %d, Plane, min %s, max %s)", getClass().getSimpleName(), imageIndex, planeIndex, Util.printCoordinates( min ), Util.printCoordinates( max ) ) );
             final ImageMetadata iMeta = getMetadata().get( imageIndex );
             for ( int d = 0; d < dimensions.length; ++d ) {
