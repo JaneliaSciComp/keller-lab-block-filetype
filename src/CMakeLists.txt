@@ -11,7 +11,7 @@ target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(${tgt} Threads::Threads bzip2 zlibstatic)
 
 set(tgt klb)
-if(${CMAKE_CXX_COMPILER_ID} STREQUAL "MSVC" AND ${MSVC_VERSION} EQUAL 1700)
+if(${MSVC} AND ${MSVC_VERSION} EQUAL 1700)
 	add_definitions(-D_VARIADIC_MAX=10)
 endif()
 add_library(${tgt} SHARED ${SRCS} ${HDRS})
