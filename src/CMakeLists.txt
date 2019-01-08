@@ -11,8 +11,12 @@ target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
 target_link_libraries(${tgt} Threads::Threads bzip2 zlibstatic)
 
 set(tgt klb)
-if(${MSVC} AND ${MSVC_VERSION} EQUAL 1700)
-	add_definitions(-D_VARIADIC_MAX=10)
+if(${MSVC})
+    # MSVC_VERSION is only defined, and thus the expresion only resolves, 
+    # if MSVC is defined.
+    if(${MSVC_VERSION} EQUAL 1700)
+        add_definitions(-D_VARIADIC_MAX=10)
+    endif()
 endif()
 add_library(${tgt} SHARED ${SRCS} ${HDRS})
 target_include_directories(${tgt} PUBLIC ${CMAKE_CURRENT_LIST_DIR})
