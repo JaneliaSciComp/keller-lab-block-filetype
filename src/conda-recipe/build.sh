@@ -1,4 +1,4 @@
-cd src/
+rm -rf build
 mkdir build
 cd build
 
@@ -35,10 +35,5 @@ cmake .. \
 # Build
 make -j${CPU_COUNT}
 
-# (The klb cmake doesn't have install commands)
-# Library install
-cp libklb.${DYLIB_EXT} ${PREFIX}/lib/
-
-# Install all headers
-mkdir -p ${PREFIX}/include/klb
-cp ../*.h ${PREFIX}/include/klb/
+# Install libs, headers
+make install
