@@ -32,9 +32,10 @@ endif()
 # Only setup install targets if klb is the project being built.
 # Projects that use klb via add_subdirectory() probably don't
 # want the install targets.  They can always set that up themselves.
-if(${PROJECT_NAME} STREQUAL klb)
+if(${CMAKE_PROJECT_NAME} STREQUAL klb)
     install(FILES ${HDRS} DESTINATION include)
-    install(TARGETS klb klb_static DESTINATION lib)
+    install(TARGETS klb LIBRARY DESTINATION lib)
+    install(TARGETS klb_static ARCHIVE DESTINATION lib)
 else()
-    message(${PROJECT_NAME})
+    message("Not installing klb libraries. CMAKE_PROJECT_NAME is ${CMAKE_PROJECT_NAME}")
 endif()

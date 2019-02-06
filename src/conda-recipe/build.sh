@@ -1,16 +1,26 @@
-cd src/
+rm -rf build
 mkdir build
 cd build
 
-if [[ `uname` == 'Darwin' ]]; then
+# Depending on our platform, shared libraries end with either .so or .dylib
+if [[ $(uname) == 'Darwin' ]]; then
     DYLIB_EXT=dylib
+    CC=clang
+    CXX=clang++
+    CXXFLAGS="-I${PREFIX}/include -stdlib=libc++ -std=c++11"
 else
     DYLIB_EXT=so
+    CXXFLAGS="-I${PREFIX}/include"
+
+    # Don't specify these -- let conda-build do it.
+    #CC=gcc
+    #CXX=g++
 fi
 
 cmake .. \
-    -DCMAKE_C_COMPILER=${PREFIX}/bin/gcc \
-    -DCMAKE_CXX_COMPILER=${PREFIX}/bin/g++ \
+    -DCMAKE_C_COMPILER=${CC} \
+    -DCMAKE_CXX_COMPILER=${CXX} \
+    -DCMAKE_CXX_FLAGS="${CXXFLAGS}" \
     -DCMAKE_INSTALL_PREFIX=${PREFIX} \
     -DCMAKE_PREFIX_PATH=${PREFIX} \
 \
@@ -25,10 +35,5 @@ cmake .. \
 # Build
 make -j${CPU_COUNT}
 
-# (The klb cmake doesn't have install commands)
-# Library install
-cp libklb.${DYLIB_EXT} ${PREFIX}/lib/
-
-# Install all headers
-mkdir -p ${PREFIX}/include/klb
-cp ../*.h ${PREFIX}/include/klb/
+# Install libs, headers
+make install
