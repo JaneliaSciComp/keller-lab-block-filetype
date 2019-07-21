@@ -45,7 +45,7 @@ sed -i -e "s@ENTITY bz-version \".*\"@ENTITY bz-version \"$VERSION\"@" \
 # isn't, so explicitly change it here too.
 sed -i -e "s@This manual page pertains to version .* of@This manual page pertains to version $VERSION of@" \
        -e "s@sorting file compressor, v.*@sorting file compressor, v$VERSION@" \
-  bzip2.1* bzip2.txt
+  bzip2.1
 
 # Update sources. All sources, use bzlib_private.
 # Except bzip2recover, which embeds a version string...
