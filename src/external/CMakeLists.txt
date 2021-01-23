@@ -1,5 +1,5 @@
 #add_subdirectory(bzip2-1.0.6)
-set(BZIPDIR bzip2-1.0.6)
+set(BZIPDIR bzip2)
 
 set(BZIPSRCS
 	${BZIPDIR}/crctable.c
