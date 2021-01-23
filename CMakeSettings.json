@@ -1,0 +1,55 @@
+﻿{
+  "configurations": [
+    {
+      "name": "x64-Debug",
+      "generator": "Ninja",
+      "configurationType": "Debug",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "variables": [
+        {
+          "name": "ZLIB_ROOT",
+          "value": "C:/Users/kittisopikulm/source/repos/keller-lab-block-filetype/src/external/zlib/out/install",
+          "type": "PATH"
+        }
+      ]
+    },
+    {
+      "name": "x64-Release",
+      "generator": "Ninja",
+      "configurationType": "RelWithDebInfo",
+      "buildRoot": "${projectDir}\\out\\build\\${name}",
+      "installRoot": "${projectDir}\\out\\install\\${name}",
+      "cmakeCommandArgs": "",
+      "buildCommandArgs": "",
+      "ctestCommandArgs": "",
+      "inheritEnvironments": [ "msvc_x64_x64" ],
+      "variables": [
+        {
+          "name": "AMD64",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "ASMINF",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "BINDINGS_JAVA",
+          "value": "True",
+          "type": "BOOL"
+        },
+        {
+          "name": "build_tests",
+          "value": "True",
+          "type": "BOOL"
+        }
+      ]
+    }
+  ]
+}
