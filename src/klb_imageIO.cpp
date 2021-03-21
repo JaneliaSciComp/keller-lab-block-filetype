@@ -537,7 +537,7 @@ void klb_imageIO::blockUncompressor(char* bufferOut, std::atomic<uint64_t> *bloc
 
 	std::uint64_t numBlocks = header.getNumBlocks();
 	char* bufferIn = new char[blockSizeBytes];//temporary storage for decompressed block
-	char* bufferFile = new char[blockSizeBytes];//temporary storage for compressed block from file
+	char* bufferFile = new char[maximumBlockSizeCompressedInBytes()];//temporary storage for compressed block from file
 
 	//main loop to keep processing blocks while they are available
 	while (1)
@@ -1611,6 +1611,10 @@ std::uint32_t klb_imageIO::maximumBlockSizeCompressedInBytes()
 
 			(ngc) testing indicates the man page is wrong.  For encoding random floats,
 			need a factor of at least 1.33.  Using 2 just to be safe.
+		*/
+		/*
+		*   ZLib: the only expansion is an overhead of five bytes per 16 KB block (about 0.03%),
+		    plus a one-time overhead of six bytes for the entire stream
 		*/
 		blockSizeBytes = ceil(((float)blockSizeBytes) * 2.0f + 50.0f );
 		break;
